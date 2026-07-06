@@ -51,7 +51,7 @@ export default async function LeaveHistoryPage() {
           </thead>
           <tbody>
             {requests?.map((req) => {
-              const u = req.users as { full_name: string } | null
+              const u = req.users as unknown as { full_name: string } | null
               return (
                 <tr key={req.id} className="border-t">
                   <td className="px-4 py-3">

@@ -16,6 +16,8 @@ const badgeVariants = cva(
         approved: 'border-green-200 bg-green-100 text-green-700',
         rejected: 'border-red-200 bg-red-100 text-red-700',
         pending: 'border-yellow-200 bg-yellow-100 text-yellow-700',
+        cancelled: 'border-gray-200 bg-gray-100 text-gray-500',
+        denied: 'border-red-200 bg-red-100 text-red-700',
       },
     },
     defaultVariants: {

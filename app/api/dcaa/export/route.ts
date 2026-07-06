@@ -109,7 +109,7 @@ export async function POST(request: Request) {
 
     if (timesheets && timesheets.length > 0) {
       for (const ts of timesheets) {
-        const u = ts.users as { full_name: string; email: string } | null
+        const u = ts.users as unknown as { full_name: string; email: string } | null
         addLine(`Employee: ${u?.full_name} (${u?.email})`, 4)
         addLine(`Week: ${ts.week_start_date} | Status: ${ts.status.toUpperCase()}`, 4)
         addLine(`Certified: ${ts.certified_by_employee ? `Yes — ${formatDateTime(ts.certified_at ?? '')}` : 'No'}`, 4)
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
 
     if (anomalies && anomalies.length > 0) {
       for (const a of anomalies) {
-        const u = a.users as { full_name: string } | null
+        const u = a.users as unknown as { full_name: string } | null
         addLine(`[${a.severity.toUpperCase()}] ${a.anomaly_type.replace(/_/g, ' ').toUpperCase()}`, 4)
         addLine(`Employee: ${u?.full_name} | ${formatDateTime(a.created_at)}`, 8)
         addLine(`Description: ${a.description}`, 8)
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
 
     if (logs && logs.length > 0) {
       for (const log of logs) {
-        const actor = log.actor as { full_name: string } | null
+        const actor = log.actor as unknown as { full_name: string } | null
         addLine(`${formatDateTime(log.created_at)} | ${log.action} | ${actor?.full_name ?? 'System'}`, 4)
         addLine(`Target: ${log.target_table} / ${log.target_id} | IP: ${log.ip_address}`, 8)
         y += 1

@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!profile) redirect('/login')
 
-  const orgData = profile.organizations as { name: string } | null
+  const orgData = profile.organizations as unknown as { name: string } | null
   const orgName = orgData?.name ?? 'Unknown Org'
 
   return (

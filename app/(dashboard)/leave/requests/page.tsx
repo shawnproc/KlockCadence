@@ -30,7 +30,8 @@ export default async function LeaveRequestsPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Leave Requests</h1>
       <LeaveApprovalQueue
-        requests={requests ?? []}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        requests={(requests ?? []) as any}
         reviewerId={user.id}
         orgId={profile.org_id}
       />

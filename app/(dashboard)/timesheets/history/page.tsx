@@ -52,7 +52,7 @@ export default async function TimesheetHistoryPage() {
           </thead>
           <tbody>
             {timesheets?.map((ts) => {
-              const u = ts.users as { full_name: string } | null
+              const u = ts.users as unknown as { full_name: string } | null
               return (
                 <tr key={ts.id} className="border-t hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3 font-medium">
