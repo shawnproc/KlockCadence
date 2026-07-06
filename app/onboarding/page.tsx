@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -35,7 +33,6 @@ const FEDERAL_DEFAULTS = [
 
 export default function OnboardingPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [step, setStep] = useState(0)
   const [orgData, setOrgData] = useState({ name: '', slug: '', fiscal_year_start: '', holiday_schedule: 'federal' })
   const [orgId, setOrgId] = useState<string | null>(null)
@@ -46,6 +43,7 @@ export default function OnboardingPage() {
   async function handleOrgSetup() {
     setSaving(true)
     try {
+      const supabase = createClient()
       const slug = orgData.slug || orgData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
       const { data, error } = await supabase
         .from('organizations')
@@ -97,6 +95,7 @@ export default function OnboardingPage() {
     if (!orgId) return
     setSaving(true)
     try {
+      const supabase = createClient()
       const toInsert = policies.map((p) => ({ ...p, org_id: orgId }))
       const { error } = await supabase.from('leave_policies').upsert(toInsert)
       if (error) throw new Error(error.message)

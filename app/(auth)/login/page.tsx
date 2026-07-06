@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -13,7 +11,6 @@ import { AlertCircle, Clock } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +20,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError(null)
     setLoading(true)
+    const supabase = createClient()
 
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
