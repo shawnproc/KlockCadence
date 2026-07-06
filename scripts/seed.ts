@@ -202,18 +202,21 @@ async function seed() {
       status: 'pending', employee_notes: 'Family vacation',
     })
   }
+  const devonteId = userIds['devonte.rivers@reddrumholdingsllc.com']
+  const anitaId = userIds['anita.kowalski@reddrumholdingsllc.com']
+
   if (priya) {
     await supabase.from('leave_requests').insert({
       org_id: ORG_ID, user_id: priya, leave_type: 'sick',
       requested_hours: 8, start_date: addDays(await getMonday(1), 2), end_date: addDays(await getMonday(1), 2),
-      status: 'approved', reviewed_by: devonte, reviewed_at: addDays(await getMonday(1), 1) + 'T10:00:00Z',
+      status: 'approved', reviewed_by: devonteId ?? null, reviewed_at: addDays(await getMonday(1), 1) + 'T10:00:00Z',
     })
   }
   if (roberto) {
     await supabase.from('leave_requests').insert({
       org_id: ORG_ID, user_id: roberto, leave_type: 'annual',
       requested_hours: 40, start_date: addDays(await getMonday(0), 14), end_date: addDays(await getMonday(0), 18),
-      status: 'denied', reviewed_by: anita, reviewed_at: new Date().toISOString(),
+      status: 'denied', reviewed_by: anitaId ?? null, reviewed_at: new Date().toISOString(),
       reviewer_notes: 'Insufficient balance for this period.',
     })
   }
@@ -225,9 +228,6 @@ async function seed() {
   console.log('  Manager: devonte.rivers@reddrumholdingsllc.com / KlockCadence2025!')
   console.log('  Employee: tyrell.brooks@reddrumholdingsllc.com / KlockCadence2025!')
 }
-
-const devonte = undefined as unknown as string // resolved in seed()
-const anita = undefined as unknown as string   // resolved in seed()
 
 seed().catch((e) => {
   console.error('Seed failed:', e)
