@@ -76,7 +76,6 @@ export function LeavePolicyManager({ policies, orgId }: LeavePolicyManagerProps)
               </thead>
               <tbody>
                 {typePolicies.map((p) => {
-                  const e = edits[p.id] ?? {}
                   return (
                     <tr key={p.id} className="border-t">
                       <td className="px-4 py-2.5 text-muted-foreground">

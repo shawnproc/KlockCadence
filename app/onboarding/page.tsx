@@ -38,7 +38,7 @@ export default function OnboardingPage() {
   const [orgData, setOrgData] = useState({ name: '', slug: '', fiscal_year_start: '', holiday_schedule: 'federal' })
   const [orgId, setOrgId] = useState<string | null>(null)
   const [csvEmployees, setCsvEmployees] = useState<unknown[]>([])
-  const [policies, setPolicies] = useState(FEDERAL_DEFAULTS)
+  const [policies] = useState(FEDERAL_DEFAULTS)
   const [saving, setSaving] = useState(false)
 
   async function handleOrgSetup() {

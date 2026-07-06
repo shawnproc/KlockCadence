@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CertificationModal } from './certification-modal'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { formatWeekRange } from '@/lib/utils'
@@ -209,11 +208,6 @@ export function TimesheetGrid({
     )
     toast.success('Timesheet certified and submitted.')
   }
-
-  const workDays = days.filter((d) => {
-    const day = new Date(d).getDay()
-    return day !== 0 && day !== 6
-  })
 
   return (
     <div className="space-y-4">

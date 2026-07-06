@@ -72,7 +72,7 @@ export function ChargeCodeManager({ codes, orgId }: ChargeCodeManagerProps) {
     setLocalCodes((c) => c.map((code) => code.id === id ? { ...code, is_active: !current } : code))
   }
 
-  function useSuggestion(s: typeof COMMON_CODES[0]) {
+  function applySuggestion(s: typeof COMMON_CODES[0]) {
     setForm({ code: s.code, description: s.description, contract_number: '', is_billable: s.is_billable })
     setShowForm(true)
   }
@@ -94,7 +94,7 @@ export function ChargeCodeManager({ codes, orgId }: ChargeCodeManagerProps) {
               <p className="text-xs text-muted-foreground mb-2">Common suggestions:</p>
               <div className="flex gap-2 flex-wrap">
                 {COMMON_CODES.filter((s) => !localCodes.find((c) => c.code === s.code)).map((s) => (
-                  <button key={s.code} onClick={() => useSuggestion(s)}
+                  <button key={s.code} onClick={() => applySuggestion(s)}
                     className="text-xs border rounded px-2 py-1 hover:bg-muted transition-colors">
                     {s.code}
                   </button>

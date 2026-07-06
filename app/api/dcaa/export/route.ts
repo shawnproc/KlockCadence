@@ -48,13 +48,6 @@ export async function POST(request: Request) {
   const margin = 20
   const pageWidth = 215.9 - margin * 2
 
-  function addTitle(text: string) {
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text(text, margin, y)
-    y += 8
-  }
-
   function addSection(text: string) {
     if (y > 250) { doc.addPage(); y = 20 }
     doc.setFontSize(12)
