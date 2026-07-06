@@ -57,7 +57,7 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
           </thead>
           <tbody>
             {logs?.map((log) => {
-              const actor = log.actor as { full_name: string; email: string } | null
+              const actor = log.actor as unknown as { full_name: string; email: string } | null
               return (
                 <tr key={log.id} className="border-t hover:bg-muted/10 transition-colors">
                   <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
