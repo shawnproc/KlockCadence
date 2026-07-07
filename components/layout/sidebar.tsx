@@ -18,6 +18,7 @@ import {
   LogOut,
   UserCheck,
   FileSpreadsheet,
+  Shield,
 } from 'lucide-react'
 
 interface NavItem {
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/audit', label: 'Audit Log', icon: ScrollText, roles: ['admin'] },
   { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { href: '/admin/charge-codes', label: 'Charge Codes', icon: Building2, roles: ['admin'] },
+  { href: '/admin/policy', label: 'Policy Manager', icon: Shield, roles: ['admin'] },
   { href: '/admin/org', label: 'Org Settings', icon: Settings, roles: ['admin'] },
 ]
 

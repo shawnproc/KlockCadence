@@ -26,6 +26,7 @@ export type AuditAction =
   | 'PROXY_ENTRY_CREATED'
   | 'PROXY_ENTRY_ACKNOWLEDGED'
   | 'LABOR_REPORT_EXPORTED'
+  | 'POLICY_VERSION_CREATED'
 
 interface AuditLogEntry {
   org_id: string
