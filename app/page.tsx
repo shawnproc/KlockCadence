@@ -167,7 +167,7 @@ export default async function LandingPage() {
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer className="bg-gray-900 text-gray-400 py-8 px-6 text-center text-xs">
         <p className="font-medium text-gray-200 mb-1">KlockCadence</p>
-        <p>klockcadence.com · A product of Keystone Operations Group LLC</p>
+        <p>klockcadence.com</p>
         <p className="mt-2 opacity-60">Built for federal contractors · DCAA compliant · FAR 31.201-2</p>
       </footer>
 
