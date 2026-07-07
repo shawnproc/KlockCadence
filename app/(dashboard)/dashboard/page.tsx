@@ -9,6 +9,7 @@ import { formatWeekRange } from '@/lib/utils'
 import { ComplianceScore, type ComplianceBreakdownItem } from '@/components/dashboard/compliance-score'
 import { ActivityFeed, type ActivityEntry } from '@/components/dashboard/activity-feed'
 import { PresenceWidget, type EmployeeStatus } from '@/components/dashboard/presence-widget'
+import { AnimatedPage } from '@/components/ui/animated-page'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -190,6 +191,7 @@ export default async function DashboardPage() {
   const sickBalance = leaveBalances?.find((b) => b.leave_type === 'sick')
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
@@ -199,7 +201,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Primary action card — timesheet status */}
-      <Card className="border-2">
+      <Card className="border-2 card-elevated">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -245,7 +247,7 @@ export default async function DashboardPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {annualBalance && (
-          <Card>
+          <Card className="card-elevated stat-accent-blue">
             <CardContent className="pt-5">
               <div className="flex items-start justify-between">
                 <div>
@@ -253,14 +255,14 @@ export default async function DashboardPage() {
                   <p className="text-2xl font-bold mt-1">{annualBalance.available_hours}h</p>
                   <p className="text-xs text-muted-foreground mt-0.5">available</p>
                 </div>
-                <Calendar className="h-5 w-5 text-muted-foreground/50 mt-0.5" />
+                <Calendar className="h-5 w-5 text-blue-400 mt-0.5" />
               </div>
             </CardContent>
           </Card>
         )}
 
         {sickBalance && (
-          <Card>
+          <Card className="card-elevated stat-accent-green">
             <CardContent className="pt-5">
               <div className="flex items-start justify-between">
                 <div>
@@ -268,23 +270,23 @@ export default async function DashboardPage() {
                   <p className="text-2xl font-bold mt-1">{sickBalance.available_hours}h</p>
                   <p className="text-xs text-muted-foreground mt-0.5">available</p>
                 </div>
-                <CheckCircle2 className="h-5 w-5 text-muted-foreground/50 mt-0.5" />
+                <CheckCircle2 className="h-5 w-5 text-green-400 mt-0.5" />
               </div>
             </CardContent>
           </Card>
         )}
 
         {(profile.role === 'manager' || profile.role === 'admin') && (
-          <Card>
+          <Card className={`card-elevated ${pendingTimesheets > 0 ? 'stat-accent-orange' : 'stat-accent-navy'}`}>
             <CardContent className="pt-5">
               <Link href="/timesheets" className="block">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending Approval</p>
-                    <p className="text-2xl font-bold mt-1">{pendingTimesheets}</p>
+                    <p className={`text-2xl font-bold mt-1 ${pendingTimesheets > 0 ? 'text-orange-600' : ''}`}>{pendingTimesheets}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">timesheets</p>
                   </div>
-                  <FileText className="h-5 w-5 text-muted-foreground/50 mt-0.5" />
+                  <FileText className={`h-5 w-5 mt-0.5 ${pendingTimesheets > 0 ? 'text-orange-400' : 'text-muted-foreground/50'}`} />
                 </div>
               </Link>
             </CardContent>
@@ -292,7 +294,7 @@ export default async function DashboardPage() {
         )}
 
         {(profile.role === 'admin' || profile.role === 'finance') && (
-          <Card>
+          <Card className={`card-elevated ${openAnomalies > 0 ? 'stat-accent-red' : 'stat-accent-green'}`}>
             <CardContent className="pt-5">
               <Link href="/anomalies" className="block">
                 <div className="flex items-start justify-between">
@@ -311,7 +313,7 @@ export default async function DashboardPage() {
         )}
 
         {(profile.role === 'manager' || profile.role === 'admin') && pendingLeave > 0 && (
-          <Card>
+          <Card className="card-elevated stat-accent-purple">
             <CardContent className="pt-5">
               <Link href="/leave/requests" className="block">
                 <div className="flex items-start justify-between">
@@ -320,7 +322,7 @@ export default async function DashboardPage() {
                     <p className="text-2xl font-bold mt-1">{pendingLeave}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">pending review</p>
                   </div>
-                  <Calendar className="h-5 w-5 text-yellow-500 mt-0.5" />
+                  <Calendar className="h-5 w-5 text-purple-400 mt-0.5" />
                 </div>
               </Link>
             </CardContent>
@@ -341,5 +343,6 @@ export default async function DashboardPage() {
         <PresenceWidget employees={presenceEmployees} />
       )}
     </div>
+    </AnimatedPage>
   )
 }

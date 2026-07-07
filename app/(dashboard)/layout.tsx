@@ -53,6 +53,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       role={profile.role as UserRole}
       userName={profile.full_name}
       orgName={orgName}
+      orgId={profile.org_id}
+      userId={user.id}
       requiresAck={requiresAck}
       policyText={policyText}
       policyVersion={policyVersion}

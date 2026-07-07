@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @layer base {
   :root {
     --background: 220 20% 97%;
@@ -24,15 +26,64 @@
     --input: 214 32% 91%;
     --ring: 221 58% 20%;
     --radius: 0.5rem;
+
+    /* Extended design tokens */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
+    --shadow-popover: 0 8px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.08);
+    --shadow-command: 0 20px 60px -12px rgb(0 0 0 / 0.20), 0 8px 24px -4px rgb(0 0 0 / 0.12);
+
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 350ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   * {
     @apply border-border;
   }
 
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Refined focus ring */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Card elevation */
+  .card-elevated {
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--duration-base) var(--ease-out);
+  }
+  .card-elevated:hover {
+    box-shadow: var(--shadow-card-hover);
   }
 }
 
@@ -40,6 +91,29 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Gradient text */
+  .text-gradient {
+    background: linear-gradient(135deg, #1B2A4A 0%, #35538A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glass effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Stat card colored left border accent */
+  .stat-accent-blue   { border-left: 3px solid #3B82F6; }
+  .stat-accent-green  { border-left: 3px solid #10B981; }
+  .stat-accent-orange { border-left: 3px solid #F59E0B; }
+  .stat-accent-red    { border-left: 3px solid #EF4444; }
+  .stat-accent-purple { border-left: 3px solid #8B5CF6; }
+  .stat-accent-navy   { border-left: 3px solid #1B2A4A; }
 }
 
 /* Severity colors for anomaly feed */
@@ -56,4 +130,37 @@
 }
 .timesheet-grid input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Notification badge pulse */
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Command palette entry animation */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 200ms var(--ease-out) both;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
