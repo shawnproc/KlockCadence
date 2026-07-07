@@ -17,6 +17,7 @@ import {
   Building2,
   LogOut,
   UserCheck,
+  FileSpreadsheet,
 } from 'lucide-react'
 
 interface NavItem {
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/timesheets/proxy', label: 'Proxy Entry', icon: UserCheck, roles: ['manager', 'admin'] },
   { href: '/anomalies', label: 'Anomalies', icon: AlertTriangle, roles: ['manager', 'admin', 'finance'] },
   { href: '/reports', label: 'DCAA Reports', icon: BarChart3, roles: ['admin', 'finance'] },
+  { href: '/reports/labor-distribution', label: 'Labor Distribution', icon: FileSpreadsheet, roles: ['admin', 'finance'] },
   { href: '/audit', label: 'Audit Log', icon: ScrollText, roles: ['admin'] },
   { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { href: '/admin/charge-codes', label: 'Charge Codes', icon: Building2, roles: ['admin'] },
