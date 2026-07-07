@@ -15,6 +15,7 @@ export interface ComplianceBreakdownItem {
   label: string
   pts: number
   max: number
+  zeroLabel?: string  // shown in red when pts === 0
 }
 
 interface ComplianceScoreProps {
@@ -56,14 +57,24 @@ export function ComplianceScore({ score, breakdown }: ComplianceScoreProps) {
           </div>
 
           <div className="flex-1 space-y-2.5">
-            {breakdown.map(({ label, pts, max }) => (
-              <div key={label} className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">{label}</span>
-                <span className={pts === max ? 'text-green-600 font-semibold' : 'text-orange-500 font-semibold'}>
-                  {pts}/{max}
-                </span>
-              </div>
-            ))}
+            {breakdown.map(({ label, pts, max, zeroLabel }) => {
+              const isZero = pts === 0
+              const isFull = pts === max
+              return (
+                <div key={label} className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className={
+                    isFull
+                      ? 'text-green-600 font-semibold'
+                      : isZero && zeroLabel
+                        ? 'text-red-600 font-semibold'
+                        : 'text-orange-500 font-semibold'
+                  }>
+                    {isZero && zeroLabel ? zeroLabel : `${pts}/${max}`}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
       </CardContent>

@@ -171,7 +171,7 @@ async function seed() {
     await supabase.from('anomalies').insert({
       org_id: ORG_ID, user_id: destinyId,
       anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
-      description: 'Leave balance modified without approved request. Annual leave accrued_hours: 40 → 120. Actor: system admin.',
+      description: 'Annual leave accrued_hours: 54 → 46. Balance reduced by 8 hours without an approved leave request. No corresponding leave request found.',
     })
   }
   if (hassanId) {

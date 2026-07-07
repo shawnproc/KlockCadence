@@ -141,7 +141,7 @@ export default async function DashboardPage() {
     complianceScore = pts1 + pts2 + pts3 + pts4
     complianceBreakdown = [
       { label: 'Timesheets on time',    pts: pts1, max: 25 },
-      { label: 'No critical anomalies', pts: pts2, max: 25 },
+      { label: 'Critical Anomaly Status', pts: pts2, max: 25, zeroLabel: 'Issue detected' },
       { label: 'Timely approvals',      pts: pts3, max: 25 },
       { label: 'Healthy balances',      pts: pts4, max: 25 },
     ]
