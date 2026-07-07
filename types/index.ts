@@ -12,6 +12,7 @@ export type AnomalyType =
   | 'timesheet_modified_after_certification'
   | 'late_entry_pattern'
   | 'missing_accrual'
+  | 'policy_unacknowledged'
 export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical'
 
 export interface Organization {
@@ -20,7 +21,19 @@ export interface Organization {
   slug: string
   fiscal_year_start: string
   holiday_schedule: HolidaySchedule
+  policy_version: string
+  policy_version_updated_at: string
+  policy_text: string
   created_at: string
+}
+
+export interface PolicyAcknowledgment {
+  id: string
+  org_id: string
+  user_id: string
+  policy_version: string
+  acknowledged_at: string
+  ip_address: string
 }
 
 export interface User {
@@ -67,7 +80,7 @@ export interface TimesheetEntry {
   charge_code_id: string
   work_date: string
   hours: number
-  notes: string | null
+  work_description: string
   created_at: string
   entry_created_at: string
 }

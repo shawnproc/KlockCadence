@@ -67,6 +67,16 @@ export async function POST(request: Request) {
     y += lines.length * 4.5
   }
 
+  function addBoldLine(text: string, indent = 0) {
+    if (y > 270) { doc.addPage(); y = 20 }
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    const lines = doc.splitTextToSize(text, pageWidth - indent)
+    doc.text(lines as string[], margin + indent, y)
+    y += lines.length * 4.5
+    doc.setFont('helvetica', 'normal')
+  }
+
   function addDivider() {
     if (y > 270) { doc.addPage(); y = 20 }
     doc.setDrawColor(200, 200, 200)
@@ -104,18 +114,57 @@ export async function POST(request: Request) {
       .lte('week_start_date', body.end_date)
       .order('week_start_date')
 
-    addSection('SECTION 1: TIMESHEETS & CERTIFICATIONS')
+    // Fetch all entries for these timesheets (with charge code info and work descriptions)
+    const timesheetIds = (timesheets ?? []).map((ts) => ts.id as string)
+
+    interface EntryRow {
+      timesheet_id: string
+      work_date: string
+      hours: number
+      work_description: string
+      charge_codes: { code: string; description: string } | null
+    }
+
+    let allEntries: EntryRow[] = []
+    if (timesheetIds.length > 0) {
+      const { data } = await serviceSupabase
+        .from('timesheet_entries')
+        .select('timesheet_id, work_date, hours, work_description, charge_codes(code, description)')
+        .in('timesheet_id', timesheetIds)
+        .order('work_date')
+      allEntries = (data ?? []) as unknown as EntryRow[]
+    }
+
+    // Group entries by timesheet_id
+    const entriesByTimesheet: Record<string, EntryRow[]> = {}
+    for (const entry of allEntries) {
+      if (!entriesByTimesheet[entry.timesheet_id]) entriesByTimesheet[entry.timesheet_id] = []
+      entriesByTimesheet[entry.timesheet_id]!.push(entry)
+    }
+
+    addSection('SECTION 1: TIMESHEETS, CERTIFICATIONS & WORK DESCRIPTIONS')
     addDivider()
 
     if (timesheets && timesheets.length > 0) {
       for (const ts of timesheets) {
         const u = ts.users as unknown as { full_name: string; email: string } | null
-        addLine(`Employee: ${u?.full_name} (${u?.email})`, 4)
+        addBoldLine(`Employee: ${u?.full_name} (${u?.email})`, 4)
         addLine(`Week: ${ts.week_start_date} | Status: ${ts.status.toUpperCase()}`, 4)
         addLine(`Certified: ${ts.certified_by_employee ? `Yes — ${formatDateTime(ts.certified_at ?? '')}` : 'No'}`, 4)
         addLine(`Approved: ${ts.approved_at ? formatDateTime(ts.approved_at) : 'Not approved'}`, 4)
         if (ts.rejection_reason) addLine(`Rejection Reason: ${ts.rejection_reason}`, 4)
-        y += 2
+
+        // Work description detail per entry
+        const tsEntries = entriesByTimesheet[ts.id as string] ?? []
+        if (tsEntries.length > 0) {
+          addLine('Time Entries & Work Descriptions:', 8)
+          for (const entry of tsEntries) {
+            const dayLabel = new Date(entry.work_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+            addLine(`  ${entry.charge_codes?.code ?? '—'} | ${dayLabel} | ${entry.hours}h`, 8)
+            addLine(`  Work Description: ${entry.work_description}`, 10)
+          }
+        }
+        y += 3
       }
     } else {
       addLine('No timesheets found for this period.', 4)
@@ -175,6 +224,35 @@ export async function POST(request: Request) {
     } else {
       addLine('No audit log entries for this period.', 4)
     }
+  }
+
+  // Section 4: Policy acknowledgment history (always included — DCAA requires it)
+  {
+    const { data: acks } = await serviceSupabase
+      .from('policy_acknowledgments')
+      .select('policy_version, acknowledged_at, ip_address, users!user_id(full_name, email)')
+      .eq('org_id', profile.org_id)
+      .gte('acknowledged_at', body.start_date)
+      .lte('acknowledged_at', body.end_date + 'T23:59:59Z')
+      .order('acknowledged_at')
+
+    if (y > 240) { doc.addPage(); y = 20 }
+    addSection('SECTION 4: POLICY ACKNOWLEDGMENT HISTORY')
+    addDivider()
+    addLine('DCAA requires documented proof that all timekeeping personnel have acknowledged the organization\'s timekeeping policy.', 4)
+    y += 2
+
+    if (acks && acks.length > 0) {
+      for (const ack of acks) {
+        const u = ack.users as unknown as { full_name: string; email: string } | null
+        addLine(`${u?.full_name} (${u?.email})`, 4)
+        addLine(`Policy Version: ${ack.policy_version} | Acknowledged: ${formatDateTime(ack.acknowledged_at)} | IP: ${ack.ip_address}`, 8)
+        y += 1
+      }
+    } else {
+      addLine('No policy acknowledgments recorded for this period.', 4)
+    }
+    y += 6
   }
 
   // Log the export in audit trail

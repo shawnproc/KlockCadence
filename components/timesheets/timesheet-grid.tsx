@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { CertificationModal } from './certification-modal'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,7 @@ interface TimesheetGridProps {
 interface GridRow {
   charge_code_id: string
   entries: Record<string, string> // work_date -> hours (string for input)
+  work_description: string
 }
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -50,16 +51,24 @@ export function TimesheetGrid({
   const isLocked = timesheet?.certified_by_employee === true && timesheet.status !== 'rejected'
   const weekRange = formatWeekRange(weekStart)
 
-  function buildInitialRows(entries: TimesheetEntry[], days: string[], codes: ChargeCode[]): GridRow[] {
+  function buildInitialRows(entries: TimesheetEntry[], _days: string[], codes: ChargeCode[]): GridRow[] {
     if (entries.length === 0 && codes.length > 0) {
-      return [{ charge_code_id: codes[0]!.id, entries: {} }]
+      return [{ charge_code_id: codes[0]!.id, entries: {}, work_description: '' }]
     }
     const grouped: Record<string, GridRow> = {}
     for (const entry of entries) {
       if (!grouped[entry.charge_code_id]) {
-        grouped[entry.charge_code_id] = { charge_code_id: entry.charge_code_id, entries: {} }
+        grouped[entry.charge_code_id] = {
+          charge_code_id: entry.charge_code_id,
+          entries: {},
+          work_description: entry.work_description,
+        }
       }
       grouped[entry.charge_code_id]!.entries[entry.work_date] = String(entry.hours)
+      // Use the first non-empty description found for this charge code row
+      if (entry.work_description && !grouped[entry.charge_code_id]!.work_description) {
+        grouped[entry.charge_code_id]!.work_description = entry.work_description
+      }
     }
     return Object.values(grouped)
   }
@@ -71,7 +80,7 @@ export function TimesheetGrid({
       toast.error('All charge codes already added.')
       return
     }
-    setRows([...rows, { charge_code_id: nextCode.id, entries: {} }])
+    setRows([...rows, { charge_code_id: nextCode.id, entries: {}, work_description: '' }])
   }
 
   function removeRow(idx: number) {
@@ -89,6 +98,12 @@ export function TimesheetGrid({
   function updateChargeCode(rowIdx: number, codeId: string) {
     setRows((prev) =>
       prev.map((row, i) => (i === rowIdx ? { ...row, charge_code_id: codeId } : row))
+    )
+  }
+
+  function updateWorkDescription(rowIdx: number, val: string) {
+    setRows((prev) =>
+      prev.map((row, i) => (i === rowIdx ? { ...row, work_description: val } : row))
     )
   }
 
@@ -129,6 +144,7 @@ export function TimesheetGrid({
             charge_code_id: row.charge_code_id,
             work_date: date,
             hours: parseFloat(hours),
+            work_description: row.work_description,
             entry_created_at: new Date().toISOString(),
           }))
       )
@@ -154,8 +170,21 @@ export function TimesheetGrid({
   }
 
   async function handleSubmitClick() {
+    // Validate work descriptions — required by DCAA CAM before certification
+    const rowsWithHours = rows.filter((row) =>
+      Object.values(row.entries).some((h) => h !== '' && parseFloat(h) > 0)
+    )
+    const missingDesc = rowsWithHours.filter((row) => row.work_description.trim().length < 10)
+    if (missingDesc.length > 0) {
+      const code = chargeCodes.find((c) => c.id === missingDesc[0]!.charge_code_id)
+      toast.error(
+        `Work description required for "${code?.code ?? 'charge code'}" — minimum 10 characters. DCAA requires documented work descriptions for all time entries.`
+      )
+      return
+    }
+
     // Validate total time accounting
-    const entriesFlat = rows.flatMap((row) =>
+    const entriesFlat = rowsWithHours.flatMap((row) =>
       Object.entries(row.entries)
         .filter(([, h]) => h !== '' && parseFloat(h) > 0)
         .map(([date, hours]) => ({
@@ -166,7 +195,7 @@ export function TimesheetGrid({
           charge_code_id: row.charge_code_id,
           work_date: date,
           hours: parseFloat(hours),
-          notes: null,
+          work_description: row.work_description,
           created_at: '',
           entry_created_at: new Date().toISOString(),
         }))
@@ -182,31 +211,40 @@ export function TimesheetGrid({
   }
 
   async function handleCertify(typedName: string) {
-    const tsId = await saveEntries()
+    try {
+      const tsId = await saveEntries()
 
-    // Mark certified
-    const { error: certError } = await supabase
-      .from('timesheets')
-      .update({
-        certified_by_employee: true,
-        certified_at: new Date().toISOString(),
-        status: 'submitted',
+      // Mark certified
+      const { error: certError } = await supabase
+        .from('timesheets')
+        .update({
+          certified_by_employee: true,
+          certified_at: new Date().toISOString(),
+          status: 'submitted',
+        })
+        .eq('id', tsId)
+
+      if (certError) throw new Error(certError.message)
+
+      // Audit log + server-side validation via API
+      const certRes = await fetch('/api/timesheets/certify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timesheet_id: tsId, typed_name: typedName }),
       })
-      .eq('id', tsId)
 
-    if (certError) throw new Error(certError.message)
+      if (!certRes.ok) {
+        const err = await certRes.json() as { error?: string }
+        throw new Error(err.error ?? 'Certification failed.')
+      }
 
-    // Audit log via API
-    await fetch('/api/timesheets/certify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timesheet_id: tsId, typed_name: typedName }),
-    })
-
-    setTimesheet((prev) =>
-      prev ? { ...prev, certified_by_employee: true, status: 'submitted' } : prev
-    )
-    toast.success('Timesheet certified and submitted.')
+      setTimesheet((prev) =>
+        prev ? { ...prev, certified_by_employee: true, status: 'submitted' } : prev
+      )
+      toast.success('Timesheet certified and submitted.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Certification failed.')
+    }
   }
 
   return (
@@ -248,6 +286,12 @@ export function TimesheetGrid({
         </div>
       )}
 
+      {!isLocked && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          <strong>DCAA Requirement:</strong> All time entries must include a work description (minimum 10 characters) before submission.
+        </div>
+      )}
+
       {/* Grid */}
       <div className="overflow-x-auto rounded-lg border timesheet-grid">
         <table className="w-full text-sm">
@@ -279,72 +323,121 @@ export function TimesheetGrid({
                 0
               )
               const code = chargeCodes.find((c) => c.id === row.charge_code_id)
+              const hasHours = Object.values(row.entries).some(
+                (h) => h !== '' && parseFloat(h) > 0
+              )
+              const descMissing = !isLocked && hasHours && row.work_description.trim().length < 10
+
               return (
-                <tr key={rowIdx} className="border-t">
-                  <td className="px-4 py-2">
-                    {isLocked ? (
-                      <div>
-                        <div className="font-medium text-xs">{code?.code}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[160px]">
-                          {code?.description}
-                        </div>
-                      </div>
-                    ) : (
-                      <select
-                        value={row.charge_code_id}
-                        onChange={(e) => updateChargeCode(rowIdx, e.target.value)}
-                        className="w-full text-xs border rounded px-2 py-1.5 bg-background focus:ring-1 focus:ring-ring focus:outline-none"
-                      >
-                        {chargeCodes.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.code} — {c.description}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                  {days.map((d) => {
-                    const isWeekend = new Date(d).getDay() === 0 || new Date(d).getDay() === 6
-                    return (
-                      <td key={d} className={`px-1 py-2 ${isWeekend ? 'bg-muted/30' : ''}`}>
-                        {isLocked ? (
-                          <div className="text-center w-14">
-                            {row.entries[d] && parseFloat(row.entries[d]!) > 0
-                              ? row.entries[d]
-                              : ''}
+                <Fragment key={rowIdx}>
+                  {/* Hours row */}
+                  <tr className="border-t">
+                    <td className="px-4 py-2">
+                      {isLocked ? (
+                        <div>
+                          <div className="font-medium text-xs">{code?.code}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-[160px]">
+                            {code?.description}
                           </div>
-                        ) : (
-                          <input
-                            type="number"
-                            min="0"
-                            max="24"
-                            step="0.25"
-                            value={row.entries[d] ?? ''}
-                            onChange={(e) => updateHours(rowIdx, d, e.target.value)}
-                            disabled={isWeekend}
-                            placeholder={isWeekend ? '' : '0'}
-                            className="w-14 text-center text-sm border rounded px-1 py-1 bg-background focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-0"
-                          />
-                        )}
-                      </td>
-                    )
-                  })}
-                  <td className="px-4 py-2 text-right font-medium tabular-nums">
-                    {rowTotal > 0 ? rowTotal : ''}
-                  </td>
-                  {!isLocked && (
-                    <td className="pr-2">
-                      {rows.length > 1 && (
-                        <button
-                          onClick={() => removeRow(rowIdx)}
-                          className="text-muted-foreground hover:text-destructive p-1 rounded"
+                        </div>
+                      ) : (
+                        <select
+                          value={row.charge_code_id}
+                          onChange={(e) => updateChargeCode(rowIdx, e.target.value)}
+                          className="w-full text-xs border rounded px-2 py-1.5 bg-background focus:ring-1 focus:ring-ring focus:outline-none"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          {chargeCodes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.code} — {c.description}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </td>
-                  )}
-                </tr>
+                    {days.map((d) => {
+                      const isWeekend = new Date(d).getDay() === 0 || new Date(d).getDay() === 6
+                      return (
+                        <td key={d} className={`px-1 py-2 ${isWeekend ? 'bg-muted/30' : ''}`}>
+                          {isLocked ? (
+                            <div className="text-center w-14">
+                              {row.entries[d] && parseFloat(row.entries[d]!) > 0
+                                ? row.entries[d]
+                                : ''}
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              min="0"
+                              max="24"
+                              step="0.25"
+                              value={row.entries[d] ?? ''}
+                              onChange={(e) => updateHours(rowIdx, d, e.target.value)}
+                              disabled={isWeekend}
+                              placeholder={isWeekend ? '' : '0'}
+                              className="w-14 text-center text-sm border rounded px-1 py-1 bg-background focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-0"
+                            />
+                          )}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-medium tabular-nums">
+                      {rowTotal > 0 ? rowTotal : ''}
+                    </td>
+                    {!isLocked && (
+                      <td className="pr-2">
+                        {rows.length > 1 && (
+                          <button
+                            onClick={() => removeRow(rowIdx)}
+                            className="text-muted-foreground hover:text-destructive p-1 rounded"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+
+                  {/* Work description row */}
+                  <tr className="bg-muted/10">
+                    <td
+                      colSpan={days.length + (isLocked ? 2 : 3)}
+                      className="px-4 pt-1 pb-3"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-xs text-muted-foreground font-medium shrink-0 mt-1.5 w-28">
+                          Work Description
+                          {!isLocked && (
+                            <span className="text-red-500 ml-0.5">*</span>
+                          )}
+                        </span>
+                        {isLocked ? (
+                          <p className="text-xs text-muted-foreground italic mt-1.5">
+                            {row.work_description || '—'}
+                          </p>
+                        ) : (
+                          <div className="flex-1">
+                            <textarea
+                              value={row.work_description}
+                              onChange={(e) => updateWorkDescription(rowIdx, e.target.value)}
+                              placeholder="Describe the work performed on this charge code (min. 10 characters)"
+                              rows={2}
+                              className={`w-full text-xs border rounded px-2 py-1.5 bg-background resize-none focus:ring-1 focus:outline-none focus:ring-ring transition-colors ${
+                                descMissing
+                                  ? 'border-red-400 focus:ring-red-400'
+                                  : 'border-input'
+                              }`}
+                            />
+                            {descMissing && (
+                              <p className="text-xs text-red-500 mt-0.5">
+                                Required before submission — DCAA CAM §6-100 requires documented work descriptions.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                </Fragment>
               )
             })}
           </tbody>
