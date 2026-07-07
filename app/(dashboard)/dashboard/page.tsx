@@ -1,11 +1,14 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getWeekStart } from '@/lib/leave/accrual'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Clock, Calendar, AlertTriangle, CheckCircle2, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { formatWeekRange } from '@/lib/utils'
+import { ComplianceScore, type ComplianceBreakdownItem } from '@/components/dashboard/compliance-score'
+import { ActivityFeed, type ActivityEntry } from '@/components/dashboard/activity-feed'
+import { PresenceWidget, type EmployeeStatus } from '@/components/dashboard/presence-widget'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -70,6 +73,116 @@ export default async function DashboardPage() {
       .eq('org_id', profile.org_id)
       .eq('status', 'pending')
     pendingLeave = count ?? 0
+  }
+
+  // ── Admin/Finance: compliance score + activity feed ──────────────────────
+  let complianceScore = 0
+  let complianceBreakdown: ComplianceBreakdownItem[] = []
+  let activityEntries: ActivityEntry[] = []
+
+  if (profile.role === 'admin' || profile.role === 'finance') {
+    const svc = await createServiceClient()
+    const eightWeeksAgo = new Date()
+    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56)
+    const eightWeeksAgoStr = eightWeeksAgo.toISOString().split('T')[0]!
+
+    const [
+      { data: recentTimesheets },
+      { count: criticalCount },
+      { count: negativeBalances },
+      { data: rawActivity },
+    ] = await Promise.all([
+      svc.from('timesheets')
+        .select('week_start_date, certified_at, approved_at, status')
+        .eq('org_id', profile.org_id)
+        .gte('week_start_date', eightWeeksAgoStr),
+      svc.from('anomalies')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', profile.org_id)
+        .eq('severity', 'critical')
+        .eq('resolved', false),
+      svc.from('leave_balances')
+        .select('id', { count: 'exact', head: true })
+        .eq('org_id', profile.org_id)
+        .lt('available_hours', 0),
+      svc.from('audit_log')
+        .select('id, action, created_at, new_value, actor:actor_id(full_name)')
+        .eq('org_id', profile.org_id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ])
+
+    // pts1: timesheets submitted on time (certified before end of Friday)
+    const certified = (recentTimesheets ?? []).filter((ts) => ts.certified_at)
+    const onTime = certified.filter((ts) => {
+      const friday = new Date(ts.week_start_date)
+      friday.setDate(friday.getDate() + 4)
+      friday.setHours(23, 59, 59, 999)
+      return new Date(ts.certified_at!) <= friday
+    })
+    const pts1 = certified.length > 0 ? Math.round((onTime.length / certified.length) * 25) : 25
+
+    // pts2: no unresolved critical anomalies
+    const pts2 = (criticalCount ?? 0) === 0 ? 25 : 0
+
+    // pts3: timesheets approved within 7 calendar days of week end
+    const approved = (recentTimesheets ?? []).filter((ts) => ts.status === 'approved' && ts.approved_at)
+    const timelyApproved = approved.filter((ts) => {
+      const friday = new Date(ts.week_start_date)
+      friday.setDate(friday.getDate() + 4)
+      const diff = (new Date(ts.approved_at!).getTime() - friday.getTime()) / 86400000
+      return diff <= 7
+    })
+    const pts3 = approved.length > 0 ? Math.round((timelyApproved.length / approved.length) * 25) : 25
+
+    // pts4: no negative leave balances
+    const pts4 = (negativeBalances ?? 0) === 0 ? 25 : Math.max(0, 25 - (negativeBalances ?? 0) * 5)
+
+    complianceScore = pts1 + pts2 + pts3 + pts4
+    complianceBreakdown = [
+      { label: 'Timesheets on time',    pts: pts1, max: 25 },
+      { label: 'No critical anomalies', pts: pts2, max: 25 },
+      { label: 'Timely approvals',      pts: pts3, max: 25 },
+      { label: 'Healthy balances',      pts: pts4, max: 25 },
+    ]
+
+    activityEntries = (rawActivity ?? []).map((e) => ({
+      id: e.id as string,
+      action: e.action as string,
+      created_at: e.created_at as string,
+      new_value: e.new_value as Record<string, unknown> | null,
+      actor: (e.actor as unknown) as { full_name: string } | null,
+    }))
+  }
+
+  // ── Admin: team presence ──────────────────────────────────────────────────
+  let presenceEmployees: EmployeeStatus[] = []
+
+  if (profile.role === 'admin') {
+    const svc = await createServiceClient()
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const [{ data: allUsers }, { data: todayActors }] = await Promise.all([
+      svc.from('users')
+        .select('id, full_name, department')
+        .eq('org_id', profile.org_id)
+        .neq('id', user.id)
+        .order('full_name'),
+      svc.from('audit_log')
+        .select('actor_id')
+        .eq('org_id', profile.org_id)
+        .gte('created_at', todayStart.toISOString()),
+    ])
+
+    const activeIds = new Set((todayActors ?? []).map((a) => a.actor_id as string))
+
+    presenceEmployees = (allUsers ?? []).map((u) => ({
+      id: u.id as string,
+      full_name: u.full_name as string,
+      department: (u.department ?? '') as string,
+      active_today: activeIds.has(u.id as string),
+    }))
   }
 
   const weekRangeLabel = formatWeekRange(weekStart)
@@ -214,6 +327,19 @@ export default async function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {/* Compliance score + Activity feed (admin/finance) */}
+      {(profile.role === 'admin' || profile.role === 'finance') && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ComplianceScore score={complianceScore} breakdown={complianceBreakdown} />
+          <ActivityFeed entries={activityEntries} />
+        </div>
+      )}
+
+      {/* Team presence (admin only) */}
+      {profile.role === 'admin' && presenceEmployees.length > 0 && (
+        <PresenceWidget employees={presenceEmployees} />
+      )}
     </div>
   )
 }

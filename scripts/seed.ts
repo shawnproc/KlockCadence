@@ -28,6 +28,10 @@ const EMPLOYEES = [
   { email: 'claire.dupont@reddrumholdingsllc.com', full_name: 'Claire Dupont', role: 'employee', department: 'Engineering', hire_date: '2023-11-27' },
   { email: 'nathaniel.stone@reddrumholdingsllc.com', full_name: 'Nathaniel Stone', role: 'employee', department: 'Engineering', hire_date: '2020-04-06' },
   { email: 'maya.patel@reddrumholdingsllc.com', full_name: 'Maya Patel', role: 'employee', department: 'Program Management', hire_date: '2021-10-12' },
+  // Phase 2 employees — added for specific anomaly scenarios
+  { email: 'sarah.johnson@reddrumholdingsllc.com', full_name: 'Sarah Johnson', role: 'employee', department: 'Engineering', hire_date: '2023-06-01' },
+  { email: 'james.williams@reddrumholdingsllc.com', full_name: 'James Williams', role: 'employee', department: 'Program Management', hire_date: '2022-04-15' },
+  { email: 'david.chen@reddrumholdingsllc.com', full_name: 'David Chen', role: 'employee', department: 'Engineering', hire_date: '2021-08-23' },
 ]
 
 const CHARGE_CODE_IDS = {
@@ -187,6 +191,36 @@ async function seed() {
           : `Late entry: work_date=${await getMonday(i + 1)}, entry submitted 30+ hours after work date`,
       })
     }
+  }
+
+  // Phase 2 anomalies — specific scenarios driving KlockCadence value story
+  const sarahId = userIds['sarah.johnson@reddrumholdingsllc.com']
+  const jamesWilliamsId = userIds['james.williams@reddrumholdingsllc.com']
+  const davidChenId = userIds['david.chen@reddrumholdingsllc.com']
+
+  if (sarahId) {
+    await supabase.from('anomalies').insert({
+      org_id: ORG_ID, user_id: sarahId,
+      anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
+      created_at: '2026-07-04T14:14:00Z',
+      description: 'Annual leave balance reduced by 8 hours without an approved leave request. Balance changed from 54.0h to 46.0h on Jul 4 2026 at 2:14 PM by finance user. No corresponding approved leave request found for this period.',
+    })
+  }
+  if (jamesWilliamsId) {
+    await supabase.from('anomalies').insert({
+      org_id: ORG_ID, user_id: jamesWilliamsId,
+      anomaly_type: 'missing_timesheet', severity: 'high',
+      created_at: '2026-06-30T08:00:00Z',
+      description: 'Timesheet not submitted for week of Jun 23 – Jun 27 2026. Friday deadline passed 72 hours ago. Contract FA8750-22-C-0012 has unbilled hours.',
+    })
+  }
+  if (davidChenId) {
+    await supabase.from('anomalies').insert({
+      org_id: ORG_ID, user_id: davidChenId,
+      anomaly_type: 'hours_shortage', severity: 'high',
+      created_at: '2026-07-05T09:00:00Z',
+      description: 'Week of Jun 30 – Jul 4 2026 shows 32 hours logged. 8 hour gap unaccounted for. No approved leave request covers the missing hours.',
+    })
   }
 
   // Leave requests

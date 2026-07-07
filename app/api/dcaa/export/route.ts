@@ -126,7 +126,7 @@ export async function POST(request: Request) {
   if (body.include_anomalies) {
     const { data: anomalies } = await serviceSupabase
       .from('anomalies')
-      .select('*, users(full_name)')
+      .select('*, users!user_id(full_name)')
       .eq('org_id', profile.org_id)
       .gte('created_at', body.start_date)
       .lte('created_at', body.end_date + 'T23:59:59Z')
