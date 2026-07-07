@@ -7,9 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { UserPlus, User } from 'lucide-react'
+import { UserPlus, User, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import type { UserRole } from '@/types'
+
+const MS_PER_YEAR = 365 * 24 * 60 * 60 * 1000
+const MS_PER_7_DAYS = 7 * 24 * 60 * 60 * 1000
 
 interface UserRow {
   id: string
@@ -21,14 +24,68 @@ interface UserRow {
   created_at: string
 }
 
+interface AckRecord {
+  policy_version: string
+  acknowledged_at: string
+}
+
 interface UserManagementProps {
   users: UserRow[]
   orgId: string
+  currentPolicyVersion: string
+  ackMap: Record<string, AckRecord>
 }
 
 const ROLES: UserRole[] = ['employee', 'manager', 'admin', 'finance']
 
-export function UserManagement({ users, orgId }: UserManagementProps) {
+function AckStatusBadge({
+  userId,
+  createdAt,
+  currentPolicyVersion,
+  ackMap,
+}: {
+  userId: string
+  createdAt: string
+  currentPolicyVersion: string
+  ackMap: Record<string, AckRecord>
+}) {
+  const ack = ackMap[userId]
+  const now = Date.now()
+
+  if (ack && ack.policy_version === currentPolicyVersion) {
+    const ackAge = now - new Date(ack.acknowledged_at).getTime()
+    if (ackAge < MS_PER_YEAR) {
+      return (
+        <div className="flex items-center gap-1 text-green-700">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">Acknowledged</span>
+          <span className="text-xs text-muted-foreground ml-1">{formatDate(ack.acknowledged_at)}</span>
+        </div>
+      )
+    }
+    // Has acknowledged but > 365 days ago
+    return (
+      <div className="flex items-center gap-1 text-amber-600">
+        <Clock className="h-3.5 w-3.5" />
+        <span className="text-xs font-medium">Renewal Due</span>
+        <span className="text-xs text-muted-foreground ml-1">{formatDate(ack.acknowledged_at)}</span>
+      </div>
+    )
+  }
+
+  // No acknowledgment for current version
+  const userAge = now - new Date(createdAt).getTime()
+  const isOverdue = userAge > MS_PER_7_DAYS
+
+  return (
+    <div className={`flex items-center gap-1 ${isOverdue ? 'text-red-600' : 'text-amber-600'}`}>
+      <AlertTriangle className="h-3.5 w-3.5" />
+      <span className="text-xs font-medium">{isOverdue ? 'Overdue' : 'Pending'}</span>
+    </div>
+  )
+}
+
+export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: UserManagementProps) {
   const supabase = createClient()
   const [localUsers, setLocalUsers] = useState(users)
   const [showInvite, setShowInvite] = useState(false)
@@ -78,8 +135,28 @@ export function UserManagement({ users, orgId }: UserManagementProps) {
     }
   }
 
+  const overdueCount = localUsers.filter((u) => {
+    const ack = ackMap[u.id]
+    const now = Date.now()
+    const hasValidAck = ack &&
+      ack.policy_version === currentPolicyVersion &&
+      now - new Date(ack.acknowledged_at).getTime() < MS_PER_YEAR
+    return !hasValidAck && now - new Date(u.created_at).getTime() > MS_PER_7_DAYS
+  }).length
+
   return (
     <div className="space-y-4">
+      {overdueCount > 0 && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{overdueCount} {overdueCount === 1 ? 'employee has' : 'employees have'}</strong>{' '}
+            not acknowledged policy v{currentPolicyVersion} within the required 7-day window.
+            This will generate compliance anomalies.
+          </span>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <Button onClick={() => setShowInvite(!showInvite)} size="sm" className="gap-1.5">
           <UserPlus className="h-4 w-4" />
@@ -134,6 +211,7 @@ export function UserManagement({ users, orgId }: UserManagementProps) {
               <th className="text-left px-4 py-3 font-medium">Department</th>
               <th className="text-left px-4 py-3 font-medium">Hire Date</th>
               <th className="text-left px-4 py-3 font-medium">Role</th>
+              <th className="text-left px-4 py-3 font-medium">Policy Acknowledgment</th>
             </tr>
           </thead>
           <tbody>
@@ -162,11 +240,24 @@ export function UserManagement({ users, orgId }: UserManagementProps) {
                     {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </td>
+                <td className="px-4 py-3">
+                  <AckStatusBadge
+                    userId={u.id}
+                    createdAt={u.created_at}
+                    currentPolicyVersion={currentPolicyVersion}
+                    ackMap={ackMap}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Policy acknowledgment version displayed: v{currentPolicyVersion}.
+        Employees must acknowledge within 7 days of hire or policy update. Annual re-acknowledgment required.
+      </p>
     </div>
   )
 }

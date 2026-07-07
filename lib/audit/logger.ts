@@ -22,6 +22,7 @@ export type AuditAction =
   | 'ANOMALY_RESOLVED'
   | 'LEAVE_POLICY_UPDATED'
   | 'ORG_SETTINGS_UPDATED'
+  | 'POLICY_ACKNOWLEDGED'
 
 interface AuditLogEntry {
   org_id: string

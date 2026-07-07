@@ -40,6 +40,7 @@ const TYPE_LABELS: Record<AnomalyType, string> = {
   timesheet_modified_after_certification: 'Post-Certification Modification',
   late_entry_pattern: 'Late Entry Pattern',
   missing_accrual: 'Missing Accrual',
+  policy_unacknowledged: 'Policy Not Acknowledged',
 }
 
 function getInitials(name: string | undefined | null) {

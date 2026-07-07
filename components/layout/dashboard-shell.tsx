@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from './sidebar'
+import { PolicyAcknowledgmentModal } from '@/components/policy/policy-acknowledgment-modal'
 import { type UserRole } from '@/types'
 import { Toaster } from 'sonner'
 
@@ -11,9 +12,22 @@ interface DashboardShellProps {
   role: UserRole
   userName: string
   orgName: string
+  requiresAck?: boolean
+  policyText?: string
+  policyVersion?: string
+  isRenewal?: boolean
 }
 
-export function DashboardShell({ children, role, userName, orgName }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  role,
+  userName,
+  orgName,
+  requiresAck,
+  policyText,
+  policyVersion,
+  isRenewal,
+}: DashboardShellProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -25,6 +39,14 @@ export function DashboardShell({ children, role, userName, orgName }: DashboardS
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {requiresAck && policyText && (
+        <PolicyAcknowledgmentModal
+          policyText={policyText}
+          policyVersion={policyVersion ?? '1.0'}
+          orgName={orgName}
+          isRenewal={isRenewal}
+        />
+      )}
       <Sidebar role={role} userName={userName} orgName={orgName} onSignOut={handleSignOut} />
       <main className="flex-1 overflow-y-auto bg-background">
         <div className="container mx-auto max-w-7xl px-6 py-8">

@@ -134,10 +134,66 @@ async function checkMissingAccruals(orgId: string) {
   }
 }
 
+// Rule: Employee has not acknowledged current timekeeping policy within 7 days
+async function checkPolicyAcknowledgments(orgId: string) {
+  const { data: org } = await supabase
+    .from('organizations')
+    .select('policy_version')
+    .eq('id', orgId)
+    .single()
+
+  if (!org) return
+
+  const now = new Date()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+
+  // All users who joined more than 7 days ago
+  const { data: users } = await supabase
+    .from('users')
+    .select('id')
+    .eq('org_id', orgId)
+    .lte('created_at', sevenDaysAgo.toISOString())
+
+  for (const u of users ?? []) {
+    // Check for a valid acknowledgment: current version, within the last year
+    const { data: ack } = await supabase
+      .from('policy_acknowledgments')
+      .select('acknowledged_at')
+      .eq('org_id', orgId)
+      .eq('user_id', u.id)
+      .eq('policy_version', org.policy_version)
+      .gte('acknowledged_at', oneYearAgo.toISOString())
+      .limit(1)
+      .maybeSingle()
+
+    if (!ack) {
+      // Only create anomaly if one doesn't already exist (unresolved)
+      const { data: existing } = await supabase
+        .from('anomalies')
+        .select('id')
+        .eq('org_id', orgId)
+        .eq('user_id', u.id)
+        .eq('anomaly_type', 'policy_unacknowledged')
+        .eq('resolved', false)
+        .maybeSingle()
+
+      if (!existing) {
+        await insertAnomaly({
+          org_id: orgId,
+          user_id: u.id,
+          anomaly_type: 'policy_unacknowledged',
+          severity: 'high',
+          description: `Employee has not acknowledged timekeeping policy v${org.policy_version}. Acknowledgment is overdue by more than 7 days. DCAA requires documented policy acknowledgment from all timekeeping personnel.`,
+        })
+      }
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   const { org_id } = await req.json() as { org_id?: string }
 
-  // Get all orgs if no specific org provided
   let orgIds: string[] = []
   if (org_id) {
     orgIds = [org_id]
@@ -150,6 +206,7 @@ Deno.serve(async (req) => {
     await checkInsufficientBalance(id)
     await checkMissingTimesheets(id)
     await checkMissingAccruals(id)
+    await checkPolicyAcknowledgments(id)
   }
 
   return new Response(JSON.stringify({ ok: true, orgs_checked: orgIds.length }), {
