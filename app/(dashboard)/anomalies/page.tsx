@@ -19,7 +19,7 @@ export default async function AnomaliesPage() {
 
   const { data: anomalies } = await supabase
     .from('anomalies')
-    .select('*, users(full_name, email)')
+    .select('*, users!user_id(full_name, email)')
     .eq('org_id', profile.org_id)
     .order('created_at', { ascending: false })
     .limit(200)
