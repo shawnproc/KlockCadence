@@ -41,6 +41,7 @@ const TYPE_LABELS: Record<AnomalyType, string> = {
   late_entry_pattern: 'Late Entry Pattern',
   missing_accrual: 'Missing Accrual',
   policy_unacknowledged: 'Policy Not Acknowledged',
+  proxy_entry_unacknowledged: 'Proxy Entry Not Acknowledged',
 }
 
 function getInitials(name: string | undefined | null) {

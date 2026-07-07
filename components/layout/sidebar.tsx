@@ -16,6 +16,7 @@ import {
   ScrollText,
   Building2,
   LogOut,
+  UserCheck,
 } from 'lucide-react'
 
 interface NavItem {
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/timesheets', label: 'Timesheets', icon: Clock, roles: ['employee', 'manager', 'admin', 'finance'] },
   { href: '/leave', label: 'Leave', icon: Calendar, roles: ['employee', 'manager', 'admin', 'finance'] },
   { href: '/leave/requests', label: 'Leave Requests', icon: FileText, roles: ['manager', 'admin'] },
+  { href: '/timesheets/proxy', label: 'Proxy Entry', icon: UserCheck, roles: ['manager', 'admin'] },
   { href: '/anomalies', label: 'Anomalies', icon: AlertTriangle, roles: ['manager', 'admin', 'finance'] },
   { href: '/reports', label: 'DCAA Reports', icon: BarChart3, roles: ['admin', 'finance'] },
   { href: '/audit', label: 'Audit Log', icon: ScrollText, roles: ['admin'] },

@@ -64,6 +64,25 @@ export default async function TimesheetsPage({ searchParams }: TimesheetPageProp
 
   const approvedLeaveHours = approvedLeave?.reduce((sum, r) => sum + r.requested_hours, 0) ?? 0
 
+  // Build proxy actor name map for any proxy entries this week
+  const proxyActorIds = Array.from(
+    new Set(
+      (entries ?? [])
+        .filter((e) => e.is_proxy_entry && e.proxy_actor_id)
+        .map((e) => e.proxy_actor_id as string)
+    )
+  )
+  const proxyActorNames: Record<string, string> = {}
+  if (proxyActorIds.length > 0) {
+    const { data: actorUsers } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .in('id', proxyActorIds)
+    for (const u of actorUsers ?? []) {
+      proxyActorNames[u.id as string] = u.full_name as string
+    }
+  }
+
   // Prev/next week navigation
   const prevWeek = new Date(weekStart)
   prevWeek.setDate(prevWeek.getDate() - 7)
@@ -110,6 +129,7 @@ export default async function TimesheetsPage({ searchParams }: TimesheetPageProp
         orgId={profile.org_id}
         fullName={profile.full_name}
         approvedLeaveHours={approvedLeaveHours}
+        proxyActorNames={proxyActorNames}
       />
 
       <div className="text-xs text-muted-foreground text-right">

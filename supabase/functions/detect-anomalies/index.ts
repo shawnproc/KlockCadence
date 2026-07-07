@@ -134,6 +134,50 @@ async function checkMissingAccruals(orgId: string) {
   }
 }
 
+// Rule: Proxy entries not acknowledged by employee within 48 hours
+async function checkProxyEntryAcknowledgments(orgId: string) {
+  const now = new Date()
+  const cutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000)
+
+  const { data: entries } = await supabase
+    .from('timesheet_entries')
+    .select('user_id, work_date, created_at')
+    .eq('org_id', orgId)
+    .eq('is_proxy_entry', true)
+    .eq('employee_acknowledged', false)
+    .lte('created_at', cutoff.toISOString())
+
+  if (!entries || entries.length === 0) return
+
+  // Group by user so we create one anomaly per employee, not per entry
+  const userCounts: Record<string, number> = {}
+  for (const entry of entries) {
+    const uid = entry.user_id as string
+    userCounts[uid] = (userCounts[uid] ?? 0) + 1
+  }
+
+  for (const [userId, count] of Object.entries(userCounts)) {
+    const { data: existing } = await supabase
+      .from('anomalies')
+      .select('id')
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
+      .eq('anomaly_type', 'proxy_entry_unacknowledged')
+      .eq('resolved', false)
+      .maybeSingle()
+
+    if (!existing) {
+      await insertAnomaly({
+        org_id: orgId,
+        user_id: userId,
+        anomaly_type: 'proxy_entry_unacknowledged',
+        severity: 'high',
+        description: `Employee has ${count} unacknowledged proxy time entr${count === 1 ? 'y' : 'ies'} older than 48 hours. DCAA requires employees to acknowledge all proxy entries upon return from absence. Immediate review required.`,
+      })
+    }
+  }
+}
+
 // Rule: Employee has not acknowledged current timekeeping policy within 7 days
 async function checkPolicyAcknowledgments(orgId: string) {
   const { data: org } = await supabase
@@ -206,6 +250,7 @@ Deno.serve(async (req) => {
     await checkInsufficientBalance(id)
     await checkMissingTimesheets(id)
     await checkMissingAccruals(id)
+    await checkProxyEntryAcknowledgments(id)
     await checkPolicyAcknowledgments(id)
   }
 

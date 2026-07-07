@@ -13,6 +13,7 @@ export type AnomalyType =
   | 'late_entry_pattern'
   | 'missing_accrual'
   | 'policy_unacknowledged'
+  | 'proxy_entry_unacknowledged'
 export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical'
 
 export interface Organization {
@@ -81,6 +82,11 @@ export interface TimesheetEntry {
   work_date: string
   hours: number
   work_description: string
+  is_proxy_entry: boolean
+  proxy_actor_id: string | null
+  proxy_reason: string | null
+  employee_acknowledged: boolean
+  employee_acknowledged_at: string | null
   created_at: string
   entry_created_at: string
 }

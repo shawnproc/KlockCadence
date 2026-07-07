@@ -23,6 +23,8 @@ export type AuditAction =
   | 'LEAVE_POLICY_UPDATED'
   | 'ORG_SETTINGS_UPDATED'
   | 'POLICY_ACKNOWLEDGED'
+  | 'PROXY_ENTRY_CREATED'
+  | 'PROXY_ENTRY_ACKNOWLEDGED'
 
 interface AuditLogEntry {
   org_id: string

@@ -255,6 +255,59 @@ export async function POST(request: Request) {
     y += 6
   }
 
+  // Section 5: Proxy entry documentation (always included — DCAA requires full justification chain)
+  {
+    interface ProxyEntryRow {
+      id: string
+      work_date: string
+      hours: number
+      proxy_reason: string
+      employee_acknowledged: boolean
+      employee_acknowledged_at: string | null
+      created_at: string
+      charge_codes: { code: string; description: string } | null
+      users: { full_name: string; email: string } | null
+      proxy_actor: { full_name: string; role: string } | null
+    }
+
+    const { data: proxyEntries } = await serviceSupabase
+      .from('timesheet_entries')
+      .select('id, work_date, hours, proxy_reason, employee_acknowledged, employee_acknowledged_at, created_at, charge_codes(code, description), users!user_id(full_name, email), proxy_actor:proxy_actor_id(full_name, role)')
+      .eq('org_id', profile.org_id)
+      .eq('is_proxy_entry', true)
+      .gte('work_date', body.start_date)
+      .lte('work_date', body.end_date)
+      .order('created_at')
+
+    if (y > 240) { doc.addPage(); y = 20 }
+    addSection('SECTION 5: PROXY ENTRY DOCUMENTATION')
+    addDivider()
+    addLine('Per DCAA policy §7, proxy entries require documented justification and employee acknowledgment. All proxy entries in this period are listed below with full audit chain.', 4)
+    y += 2
+
+    const typedProxyEntries = (proxyEntries ?? []) as unknown as ProxyEntryRow[]
+
+    if (typedProxyEntries.length > 0) {
+      for (const pe of typedProxyEntries) {
+        const employee = pe.users
+        const actor = pe.proxy_actor
+        const dayLabel = new Date(pe.work_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        addBoldLine(`Employee: ${employee?.full_name ?? '—'} (${employee?.email ?? '—'})`, 4)
+        addLine(`Date: ${dayLabel} | Charge Code: ${pe.charge_codes?.code ?? '—'} | Hours: ${pe.hours}h`, 8)
+        addLine(`Proxy Actor: ${actor?.full_name ?? '—'} (${actor?.role ?? '—'}) | Created: ${formatDateTime(pe.created_at)}`, 8)
+        addLine(`Justification: ${pe.proxy_reason ?? '—'}`, 8)
+        addLine(
+          `Employee Acknowledged: ${pe.employee_acknowledged ? `Yes — ${formatDateTime(pe.employee_acknowledged_at ?? '')}` : 'NO — PENDING ACKNOWLEDGMENT'}`,
+          8
+        )
+        y += 2
+      }
+    } else {
+      addLine('No proxy entries recorded for this period.', 4)
+    }
+    y += 6
+  }
+
   // Log the export in audit trail
   await writeAuditLog({
     org_id: profile.org_id,
