@@ -14,7 +14,7 @@ interface AnomalyRecord {
 }
 
 export async function recordAnomaly(anomaly: AnomalyRecord): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
 
   const { data, error } = await supabase
     .from('anomalies')
@@ -41,7 +41,7 @@ export async function recordAnomaly(anomaly: AnomalyRecord): Promise<void> {
 }
 
 async function notifyFinanceAndAdmin(anomaly: AnomalyRecord): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
 
   const { data: recipients } = await supabase
     .from('users')
@@ -76,7 +76,7 @@ export async function runNightlyChecks(orgId: string): Promise<void> {
 }
 
 async function checkMissingTimesheets(orgId: string): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
 
   // Get all active employees
   const { data: employees } = await supabase
@@ -120,7 +120,7 @@ async function checkMissingTimesheets(orgId: string): Promise<void> {
 }
 
 async function checkMissingAccruals(orgId: string): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
 
   const { data: balances } = await supabase
     .from('leave_balances')

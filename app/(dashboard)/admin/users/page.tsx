@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
   const orgData = profile.organizations as unknown as { policy_version: string } | null
   const currentPolicyVersion = orgData?.policy_version ?? '1.0'
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const [{ data: users }, { data: allAcks }] = await Promise.all([
     supabase

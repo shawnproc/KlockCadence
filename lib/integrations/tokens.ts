@@ -14,8 +14,8 @@ export async function storeTokens(
   integrationType: IntegrationType,
   tokens: StoredTokens
 ): Promise<void> {
-  const svc = await createServiceClient()
-  await svc
+  const svc = createServiceClient()
+  const { error } = await svc
     .from('integrations')
     .upsert(
       {
@@ -30,13 +30,14 @@ export async function storeTokens(
       },
       { onConflict: 'org_id,integration_type' }
     )
+  if (error) throw new Error(`Failed to store tokens: ${error.message}`)
 }
 
 export async function getTokens(
   orgId: string,
   integrationType: IntegrationType
 ): Promise<StoredTokens | null> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { data } = await svc
     .from('integrations')
     .select('access_token_enc, refresh_token_enc, token_expires_at, realm_id, status')
@@ -57,7 +58,7 @@ export async function getTokens(
 }
 
 export async function clearTokens(orgId: string, integrationType: IntegrationType): Promise<void> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   await svc
     .from('integrations')
     .update({

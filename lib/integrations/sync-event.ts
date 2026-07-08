@@ -14,7 +14,7 @@ interface SyncEventParams {
 }
 
 export async function writeSyncEvent(params: SyncEventParams): Promise<void> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Write sync event (insert-only table)
   await svc.from('integration_sync_events').insert({

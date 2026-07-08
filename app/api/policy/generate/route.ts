@@ -207,7 +207,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'effective_date is required in YYYY-MM-DD format.' }, { status: 422 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Get current org to compute new version
   const { data: org } = await svc

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No entry IDs provided.' }, { status: 422 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Verify all entries belong to this user in this org and are proxy entries
   const { data: entries, error: fetchError } = await svc

@@ -47,7 +47,7 @@ interface AuditLogEntry {
 }
 
 export async function writeAuditLog(entry: AuditLogEntry): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
   const headersList = await headers()
   const ip = headersList.get('x-forwarded-for') ?? headersList.get('x-real-ip') ?? 'unknown'
 

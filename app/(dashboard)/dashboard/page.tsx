@@ -82,7 +82,7 @@ export default async function DashboardPage() {
   let activityEntries: ActivityEntry[] = []
 
   if (profile.role === 'admin' || profile.role === 'finance') {
-    const svc = await createServiceClient()
+    const svc = createServiceClient()
     const eightWeeksAgo = new Date()
     eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56)
     const eightWeeksAgoStr = eightWeeksAgo.toISOString().split('T')[0]!
@@ -160,7 +160,7 @@ export default async function DashboardPage() {
   let presenceEmployees: EmployeeStatus[] = []
 
   if (profile.role === 'admin') {
-    const svc = await createServiceClient()
+    const svc = createServiceClient()
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 

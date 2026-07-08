@@ -14,7 +14,7 @@ export async function syncTimesheetsToXero(
   startDate: string,
   endDate: string
 ): Promise<XeroSyncResult> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   await getTokens(orgId, 'xero') // validates connection
 
   const { data: entries } = await svc

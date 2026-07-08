@@ -23,7 +23,7 @@ export async function POST() {
   const ip = headersList.get('x-forwarded-for') ?? headersList.get('x-real-ip') ?? 'unknown'
 
   // Insert acknowledgment record (insert-only table)
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { error: ackError } = await svc.from('policy_acknowledgments').insert({
     org_id: profile.org_id,
     user_id: user.id,

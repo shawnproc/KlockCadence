@@ -19,7 +19,7 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const { data: version } = await svc
     .from('policy_versions')

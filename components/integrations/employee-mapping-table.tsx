@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Loader2, Save } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Loader2, Save, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import type { IntegrationType } from '@/types'
@@ -29,9 +29,11 @@ export function EmployeeMappingTable({ integrationType, kcUsers }: Props) {
   const [rows, setRows] = useState<MappingRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [autoMatching, setAutoMatching] = useState(false)
   const meta = INTEGRATION_META[integrationType]
 
-  useEffect(() => {
+  const loadMappings = useCallback(() => {
+    setLoading(true)
     fetch(`/api/integrations/${integrationType}/mappings`)
       .then((r) => r.json())
       .then((d: { mappings?: { kc_user_id: string; external_id: string; external_name: string | null }[] }) => {
@@ -50,10 +52,28 @@ export function EmployeeMappingTable({ integrationType, kcUsers }: Props) {
       .catch(() => setLoading(false))
   }, [integrationType, kcUsers])
 
+  useEffect(() => { loadMappings() }, [loadMappings])
+
   function updateRow(userId: string, field: 'external_id' | 'external_name', value: string) {
     setRows((prev) =>
       prev.map((r) => (r.kc_user_id === userId ? { ...r, [field]: value } : r))
     )
+  }
+
+  async function handleAutoMatch() {
+    setAutoMatching(true)
+    try {
+      const res = await fetch(`/api/integrations/${integrationType}/auto-match`, { method: 'POST' })
+      const data = (await res.json()) as { matched?: number; unmatched?: string[]; error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Auto-match failed')
+      const unmatchedCount = data.unmatched?.length ?? 0
+      toast.success(`Auto-matched ${data.matched} employee${data.matched === 1 ? '' : 's'}.${unmatchedCount > 0 ? ` ${unmatchedCount} still need manual mapping.` : ''}`)
+      loadMappings()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Auto-match failed.')
+    } finally {
+      setAutoMatching(false)
+    }
   }
 
   async function handleSave() {
@@ -129,10 +149,24 @@ export function EmployeeMappingTable({ integrationType, kcUsers }: Props) {
           </tbody>
         </table>
       </div>
-      <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5" style={{ backgroundColor: '#1B2A4A' }}>
-        <Save className="h-3.5 w-3.5" />
-        {saving ? 'Saving…' : 'Save Mappings'}
-      </Button>
+      <div className="flex gap-2">
+        {integrationType === 'quickbooks' && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleAutoMatch}
+            disabled={autoMatching || saving}
+            className="gap-1.5"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {autoMatching ? 'Matching…' : 'Auto-match from QuickBooks'}
+          </Button>
+        )}
+        <Button size="sm" onClick={handleSave} disabled={saving || autoMatching} className="gap-1.5" style={{ backgroundColor: '#1B2A4A' }}>
+          <Save className="h-3.5 w-3.5" />
+          {saving ? 'Saving…' : 'Save Mappings'}
+        </Button>
+      </div>
     </div>
   )
 }

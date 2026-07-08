@@ -70,11 +70,11 @@ export function LaborDistributionReport({ orgName }: LaborDistributionReportProp
       'Total Hours':          formatHours(r.total_hours),
       'Includes Proxy Hours': r.has_proxy_hours ? 'Y' : 'N',
       'GL Account':           r.is_billable ? 'Direct Labor' : 'Indirect/Overhead',
-      'GL Entry Memo':        `${r.is_billable ? 'Direct Labor' : 'Indirect Labor'} — ${r.charge_code}${r.contract_number ? ` / ${r.contract_number}` : ''} — ${label}`,
+      'GL Entry Memo':        `${r.is_billable ? 'Direct Labor' : 'Indirect Labor'} ${r.charge_code}${r.contract_number ? ` / ${r.contract_number}` : ''} ${label}`,
     }))
 
     const csv = Papa.unparse(csvData)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

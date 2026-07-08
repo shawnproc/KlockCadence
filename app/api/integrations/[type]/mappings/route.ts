@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
     .from('users').select('role, org_id').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { data } = await svc
     .from('integration_mappings')
     .select('id, kc_user_id, external_id, external_name, updated_at')
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext): Promise<N
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = (await req.json()) as { mappings: MappingBody[] }
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Upsert all provided mappings (admin confirmed intent)
   for (const m of body.mappings) {

@@ -26,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { data } = await svc
     .from('integrations')
     .select('id, status, last_sync_at, last_sync_status, last_error_message, sync_frequency, error_notify_user_id, realm_id, token_expires_at, updated_at')
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext): Promise
   }
 
   const body = (await req.json()) as SettingsBody
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.sync_frequency) updates.sync_frequency = body.sync_frequency

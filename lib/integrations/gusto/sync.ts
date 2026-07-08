@@ -13,7 +13,7 @@ export async function syncLeaveToGusto(
   startDate: string,
   endDate: string
 ): Promise<GustoSyncResult> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const stored = await getTokens(orgId, 'gusto')
   if (!stored?.realmId) throw new Error('Gusto not connected')
 

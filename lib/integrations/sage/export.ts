@@ -18,7 +18,7 @@ export async function generateSageExport(
   startDate: string,
   endDate: string
 ): Promise<string> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const { data: entries } = await svc
     .from('timesheet_entries')

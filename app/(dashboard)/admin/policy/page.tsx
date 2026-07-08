@@ -16,7 +16,7 @@ export default async function PolicyManagerPage() {
 
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const [{ data: org }, { data: rawVersions }] = await Promise.all([
     supabase

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'At least one day must have hours greater than zero.' }, { status: 422 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Verify employee exists in same org
   const { data: employee } = await svc

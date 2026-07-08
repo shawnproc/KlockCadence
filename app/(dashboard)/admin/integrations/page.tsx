@@ -19,7 +19,7 @@ export default async function IntegrationsAdminPage() {
   if (!profile || profile.role !== 'admin') redirect('/dashboard')
 
   const orgId = profile.org_id as string
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Fetch all connected integrations for this org (intentionally excludes token columns)
   const [{ data: rawIntegrations }, { data: kcUsers }, { data: chargeCodes }] = await Promise.all([

@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { data } = await svc
     .from('integration_sync_events')
     .select('id, status, records_synced, error_message, created_at, users!triggered_by(full_name)')

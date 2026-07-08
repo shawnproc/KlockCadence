@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyOAuthState } from '@/lib/integrations/oauth-state'
 import { exchangeCode } from '@/lib/integrations/quickbooks/client'
+import { autoMatchQBOEmployees } from '@/lib/integrations/quickbooks/auto-match'
 import { writeAuditLog } from '@/lib/audit/logger'
 import { createServiceClient } from '@/lib/supabase/server'
 
@@ -27,19 +28,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await exchangeCode(parsed.orgId, code, realmId)
 
-    // Ensure integrations row exists (upsert happens inside exchangeCode → storeTokens)
+    // Auto-match KC users to QBO employees by email/name (non-fatal)
+    try {
+      await autoMatchQBOEmployees(parsed.orgId)
+    } catch (matchErr) {
+      console.warn('[QBO callback] auto-match failed (non-fatal):', matchErr instanceof Error ? matchErr.message : matchErr)
+    }
+
     await writeAuditLog({
       org_id: parsed.orgId,
       actor_id: parsed.userId,
       action: 'INTEGRATION_CONNECTED',
       target_table: 'integrations',
-      target_id: 'quickbooks',
+      target_id: parsed.orgId,
       new_value: { integration_type: 'quickbooks', realm_id: realmId },
     })
 
     dashboardUrl.searchParams.set('connected', 'quickbooks')
   } catch (e) {
-    const svc = await createServiceClient()
+    console.error('[QBO callback] token exchange failed:', e instanceof Error ? e.message : e)
+    const svc = createServiceClient()
     await svc
       .from('integrations')
       .upsert(

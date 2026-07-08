@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -33,19 +33,20 @@ export function IntegrationsPage({ integrations, kcUsers, chargeCodes }: Integra
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  // Show toasts for OAuth redirect results
   const connected = searchParams.get('connected')
   const error = searchParams.get('error')
 
-  if (connected) {
-    const meta = INTEGRATION_META[connected as IntegrationType]
-    toast.success(`${meta?.name ?? connected} connected successfully.`)
-    router.replace('/admin/integrations')
-  }
-  if (error) {
-    toast.error(errorLabel(error))
-    router.replace('/admin/integrations')
-  }
+  useEffect(() => {
+    if (connected) {
+      const meta = INTEGRATION_META[connected as IntegrationType]
+      toast.success(`${meta?.name ?? connected} connected successfully.`)
+      router.replace('/admin/integrations')
+    }
+    if (error) {
+      toast.error(errorLabel(error))
+      router.replace('/admin/integrations')
+    }
+  }, [connected, error, router])
 
   // Integration state map (indexed by type)
   const [integrationMap, setIntegrationMap] = useState<Map<IntegrationType, Integration>>(

@@ -20,7 +20,7 @@ export default async function LeaveHistoryPage() {
 
   const query = supabase
     .from('leave_requests')
-    .select('id, leave_type, requested_hours, start_date, end_date, status, reviewer_notes, created_at, users(full_name)')
+    .select('id, leave_type, requested_hours, start_date, end_date, status, reviewer_notes, created_at, users!user_id(full_name)')
     .eq('org_id', profile.org_id)
     .order('created_at', { ascending: false })
     .limit(100)

@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext): Promise<
     .from('users').select('role, org_id').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
   const { data } = await svc
     .from('integration_code_mappings')
     .select('id, charge_code_id, external_code, external_name, updated_at')
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext): Promise<N
   if (!profile || profile.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = (await req.json()) as { mappings: CodeMappingBody[] }
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   for (const m of body.mappings) {
     if (!m.charge_code_id || !m.external_code) continue

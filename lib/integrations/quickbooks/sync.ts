@@ -31,7 +31,7 @@ export async function syncTimesheetsToQBO(
   startDate: string,
   endDate: string
 ): Promise<SyncResult> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   // Fetch approved timesheet entries for the period
   const { data: entries, error } = await svc
@@ -44,7 +44,7 @@ export async function syncTimesheetsToQBO(
       hours,
       work_description,
       charge_codes!inner (code, description, contract_number, is_billable),
-      users!inner (full_name)
+      users!user_id (full_name)
     `)
     .eq('org_id', orgId)
     .gte('work_date', startDate)
@@ -150,11 +150,11 @@ export async function syncLeaveToQBO(
   startDate: string,
   endDate: string
 ): Promise<SyncResult> {
-  const svc = await createServiceClient()
+  const svc = createServiceClient()
 
   const { data: requests, error } = await svc
     .from('leave_requests')
-    .select('id, user_id, leave_type, start_date, end_date, requested_hours, users!inner(full_name)')
+    .select('id, user_id, leave_type, start_date, end_date, requested_hours, users!user_id(full_name)')
     .eq('org_id', orgId)
     .eq('status', 'approved')
     .gte('start_date', startDate)

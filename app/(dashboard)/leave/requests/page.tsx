@@ -20,7 +20,7 @@ export default async function LeaveRequestsPage() {
     .select(`
       id, leave_type, requested_hours, start_date, end_date,
       status, employee_notes, reviewer_notes, created_at,
-      users(full_name, email, department)
+      users!user_id(full_name, email, department)
     `)
     .eq('org_id', profile.org_id)
     .eq('status', 'pending')
