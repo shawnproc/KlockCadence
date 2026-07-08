@@ -20,12 +20,26 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
   }
 
-  const state = createOAuthState(profile.org_id as string, user.id)
+  if (!profile.org_id) {
+    return NextResponse.json({ error: 'Organization not configured' }, { status: 400 })
+  }
+
+  if (!process.env.QBO_CLIENT_ID || !process.env.QBO_REDIRECT_URI || !process.env.INTEGRATION_ENCRYPTION_KEY) {
+    return NextResponse.json({ error: 'QuickBooks integration not configured on server' }, { status: 500 })
+  }
+
+  let state: string
+  try {
+    state = createOAuthState(profile.org_id as string, user.id)
+  } catch (e) {
+    console.error('[QBO auth]', e)
+    return NextResponse.json({ error: 'Failed to create OAuth state' }, { status: 500 })
+  }
 
   const params = new URLSearchParams({
-    client_id: process.env.QBO_CLIENT_ID!,
+    client_id: process.env.QBO_CLIENT_ID,
     scope: SCOPE,
-    redirect_uri: process.env.QBO_REDIRECT_URI!,
+    redirect_uri: process.env.QBO_REDIRECT_URI,
     response_type: 'code',
     state,
   })

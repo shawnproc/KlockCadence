@@ -72,7 +72,7 @@ export const INTEGRATION_META: Record<IntegrationType, IntegrationMeta> = {
   },
 }
 
-// Order of display on the integrations page
+// Only QuickBooks is active. Add others here when ready to enable.
 export const INTEGRATION_ORDER: IntegrationType[] = [
-  'quickbooks', 'gusto', 'adp', 'xero', 'sage_intacct', 'deltek',
+  'quickbooks',
 ]
