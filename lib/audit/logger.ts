@@ -27,6 +27,14 @@ export type AuditAction =
   | 'PROXY_ENTRY_ACKNOWLEDGED'
   | 'LABOR_REPORT_EXPORTED'
   | 'POLICY_VERSION_CREATED'
+  | 'INTEGRATION_CONNECTED'
+  | 'INTEGRATION_DISCONNECTED'
+  | 'QUICKBOOKS_SYNC'
+  | 'GUSTO_SYNC'
+  | 'ADP_EXPORT'
+  | 'XERO_SYNC'
+  | 'SAGE_EXPORT'
+  | 'DELTEK_EXPORT'
 
 interface AuditLogEntry {
   org_id: string

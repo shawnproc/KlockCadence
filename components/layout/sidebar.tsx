@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   Shield,
   Command,
+  Plug,
 } from 'lucide-react'
 
 interface NavItem {
@@ -42,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { href: '/admin/charge-codes', label: 'Charge Codes', icon: Building2, roles: ['admin'] },
   { href: '/admin/policy', label: 'Policy Manager', icon: Shield, roles: ['admin'] },
+  { href: '/admin/integrations', label: 'Integrations', icon: Plug, roles: ['admin'] },
   { href: '/admin/org', label: 'Org Settings', icon: Settings, roles: ['admin'] },
 ]
 
