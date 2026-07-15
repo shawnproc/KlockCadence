@@ -33,6 +33,7 @@ function toPlainEnglish(entry: ActivityEntry): { text: string; isAlert: boolean 
   if (a === 'USER_CREATED') return { text: `${name} added a new employee`, isAlert: false }
   if (a === 'USER_ROLE_CHANGED') return { text: `${name} changed an employee role`, isAlert: true }
   if (a === 'USER_DEACTIVATED') return { text: `${name} deactivated a user`, isAlert: true }
+  if (a === 'USER_REACTIVATED') return { text: `${name} reactivated a user`, isAlert: false }
   if (a === 'CHARGE_CODE_CREATED') return { text: `${name} created a charge code`, isAlert: false }
   if (a === 'ORG_SETTINGS_UPDATED') return { text: `${name} updated organization settings`, isAlert: false }
   if (a === 'CERTIFICATION_SIGNED') return { text: `${name} signed an employee certification`, isAlert: false }

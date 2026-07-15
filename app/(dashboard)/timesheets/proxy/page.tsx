@@ -25,6 +25,7 @@ export default async function ProxyEntryPage() {
       .select('id, full_name, email, department')
       .eq('org_id', profile.org_id)
       .eq('role', 'employee')
+      .eq('is_active', true)
       .order('full_name'),
     supabase
       .from('charge_codes')

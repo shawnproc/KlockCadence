@@ -78,12 +78,13 @@ export async function runNightlyChecks(orgId: string): Promise<void> {
 async function checkMissingTimesheets(orgId: string): Promise<void> {
   const supabase = createServiceClient()
 
-  // Get all active employees
+  // Get all active employees (offboarded users no longer generate anomalies)
   const { data: employees } = await supabase
     .from('users')
     .select('id')
     .eq('org_id', orgId)
     .eq('role', 'employee')
+    .eq('is_active', true)
 
   if (!employees) return
 

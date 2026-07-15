@@ -168,6 +168,7 @@ export default async function DashboardPage() {
       svc.from('users')
         .select('id, full_name, department')
         .eq('org_id', profile.org_id)
+        .eq('is_active', true)
         .neq('id', user.id)
         .order('full_name'),
       svc.from('audit_log')

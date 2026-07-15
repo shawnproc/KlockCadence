@@ -42,16 +42,17 @@ export async function POST(request: Request) {
 
   const svc = createServiceClient()
 
-  // Verify employee exists in same org
+  // Verify employee exists in same org and is still active
   const { data: employee } = await svc
     .from('users')
     .select('id, full_name, email, org_id')
     .eq('id', body.employee_id)
     .eq('org_id', actor.org_id)
+    .eq('is_active', true)
     .single()
 
   if (!employee) {
-    return NextResponse.json({ error: 'Employee not found in your organization.' }, { status: 404 })
+    return NextResponse.json({ error: 'Employee not found or has been deactivated.' }, { status: 404 })
   }
 
   // Verify charge code belongs to org

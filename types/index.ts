@@ -45,6 +45,9 @@ export interface User {
   role: UserRole
   department: string
   hire_date: string
+  is_active: boolean
+  deactivated_at: string | null
+  deactivated_by: string | null
   created_at: string
 }
 

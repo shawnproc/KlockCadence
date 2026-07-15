@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { UserPlus, User, CheckCircle2, AlertTriangle, Clock } from 'lucide-react'
+import { UserPlus, User, CheckCircle2, AlertTriangle, Clock, UserX, UserCheck } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import type { UserRole } from '@/types'
 
@@ -22,6 +23,8 @@ interface UserRow {
   department: string
   hire_date: string
   created_at: string
+  is_active: boolean
+  deactivated_at: string | null
 }
 
 interface AckRecord {
@@ -32,6 +35,7 @@ interface AckRecord {
 interface UserManagementProps {
   users: UserRow[]
   orgId: string
+  currentUserId: string
   currentPolicyVersion: string
   ackMap: Record<string, AckRecord>
 }
@@ -85,7 +89,7 @@ function AckStatusBadge({
   )
 }
 
-export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: UserManagementProps) {
+export function UserManagement({ users, orgId, currentUserId, currentPolicyVersion, ackMap }: UserManagementProps) {
   const supabase = createClient()
   const [localUsers, setLocalUsers] = useState(users)
   const [showInvite, setShowInvite] = useState(false)
@@ -94,6 +98,33 @@ export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: U
   })
   const [submitting, setSubmitting] = useState(false)
   const [updatingRole, setUpdatingRole] = useState<Record<string, boolean>>({})
+  const [updatingActive, setUpdatingActive] = useState<Record<string, boolean>>({})
+
+  async function handleActiveChange(userId: string, fullName: string, nextActive: boolean) {
+    if (!nextActive && !window.confirm(
+      `Deactivate ${fullName}? They will be signed out and blocked from logging in, and removed from active rosters. ` +
+      `All of their timesheets, certifications, and audit history are retained for DCAA compliance. You can reactivate them later.`
+    )) return
+
+    setUpdatingActive((u) => ({ ...u, [userId]: true }))
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/deactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: nextActive }),
+      })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Update failed.')
+      setLocalUsers((u) => u.map((user) => user.id === userId
+        ? { ...user, is_active: nextActive, deactivated_at: nextActive ? null : new Date().toISOString() }
+        : user))
+      toast.success(nextActive ? `${fullName} reactivated.` : `${fullName} deactivated.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Update failed.')
+    } finally {
+      setUpdatingActive((u) => ({ ...u, [userId]: false }))
+    }
+  }
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -212,11 +243,12 @@ export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: U
               <th className="text-left px-4 py-3 font-medium">Hire Date</th>
               <th className="text-left px-4 py-3 font-medium">Role</th>
               <th className="text-left px-4 py-3 font-medium">Policy Acknowledgment</th>
+              <th className="text-left px-4 py-3 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {localUsers.map((u) => (
-              <tr key={u.id} className="border-t">
+              <tr key={u.id} className={`border-t ${!u.is_active ? 'opacity-60' : ''}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
@@ -234,8 +266,8 @@ export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: U
                   <select
                     value={u.role}
                     onChange={(e) => handleRoleChange(u.id, e.target.value as UserRole)}
-                    disabled={updatingRole[u.id]}
-                    className="h-7 rounded border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none"
+                    disabled={updatingRole[u.id] || !u.is_active}
+                    className="h-7 rounded border border-input bg-background px-2 text-xs focus:ring-1 focus:ring-ring focus:outline-none disabled:cursor-not-allowed"
                   >
                     {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
@@ -247,6 +279,36 @@ export function UserManagement({ users, orgId, currentPolicyVersion, ackMap }: U
                     currentPolicyVersion={currentPolicyVersion}
                     ackMap={ackMap}
                   />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={u.is_active ? 'approved' : 'outline'}>
+                      {u.is_active ? 'Active' : 'Deactivated'}
+                    </Badge>
+                    {u.id !== currentUserId && (
+                      u.is_active ? (
+                        <button
+                          onClick={() => handleActiveChange(u.id, u.full_name, false)}
+                          disabled={updatingActive[u.id]}
+                          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                          title="Deactivate — blocks login, retains records"
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                          {updatingActive[u.id] ? '…' : 'Deactivate'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleActiveChange(u.id, u.full_name, true)}
+                          disabled={updatingActive[u.id]}
+                          className="flex items-center gap-1 text-xs text-green-700 hover:text-green-800 disabled:opacity-50"
+                          title="Reactivate — restores login"
+                        >
+                          <UserCheck className="h-3.5 w-3.5" />
+                          {updatingActive[u.id] ? '…' : 'Reactivate'}
+                        </button>
+                      )
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

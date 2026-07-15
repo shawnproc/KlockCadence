@@ -23,7 +23,7 @@ export default async function AdminUsersPage() {
   const [{ data: users }, { data: allAcks }] = await Promise.all([
     supabase
       .from('users')
-      .select('id, full_name, email, role, department, hire_date, created_at')
+      .select('id, full_name, email, role, department, hire_date, created_at, is_active, deactivated_at')
       .eq('org_id', profile.org_id)
       .order('full_name'),
     svc
@@ -51,6 +51,7 @@ export default async function AdminUsersPage() {
       <UserManagement
         users={users ?? []}
         orgId={profile.org_id}
+        currentUserId={user.id}
         currentPolicyVersion={currentPolicyVersion}
         ackMap={ackMap}
       />

@@ -16,11 +16,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await supabase
     .from('users')
-    .select('full_name, role, org_id, organizations(name, policy_version, policy_text)')
+    .select('full_name, role, org_id, is_active, organizations(name, policy_version, policy_text)')
     .eq('id', user.id)
     .single()
 
   if (!profile) redirect('/login')
+
+  // Offboarded users retain their records but lose all access — sign them out.
+  if (profile.is_active === false) redirect('/api/auth/logout?reason=deactivated')
 
   const orgData = profile.organizations as unknown as {
     name: string
