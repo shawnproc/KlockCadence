@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -40,18 +40,25 @@ export default function OnboardingPage() {
   const [policies] = useState(FEDERAL_DEFAULTS)
   const [saving, setSaving] = useState(false)
 
+  // Onboarding creates an org and links the current user as its admin, so the
+  // caller must be signed in.
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/login')
+    })
+  }, [router])
+
   async function handleOrgSetup() {
     setSaving(true)
     try {
-      const supabase = createClient()
-      const slug = orgData.slug || orgData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-      const { data, error } = await supabase
-        .from('organizations')
-        .insert({ name: orgData.name, slug, fiscal_year_start: orgData.fiscal_year_start, holiday_schedule: orgData.holiday_schedule })
-        .select()
-        .single()
-      if (error) throw new Error(error.message)
-      setOrgId(data.id)
+      const res = await fetch('/api/onboarding/setup-org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orgData),
+      })
+      const data = await res.json() as { error?: string; org_id?: string }
+      if (!res.ok || !data.org_id) throw new Error(data.error ?? 'Failed to create organization.')
+      setOrgId(data.org_id)
       setStep(1)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed.')
