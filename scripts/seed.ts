@@ -184,18 +184,51 @@ async function seed() {
       reviewer_notes: 'Approved — 8 hours.',
     })
 
-    // The unauthorized over-deduction: 16h were removed but only 8h were approved.
+    // A spread of DISTINCT anomaly types and severities so the feed shows the
+    // range of what the system detects — not one anomaly type repeated.
     const unaccounted = SCENARIO_DEDUCTED_HOURS - SCENARIO_APPROVED_HOURS
-    console.log('\n⚠️  Seeding unauthorized_balance_edit anomaly...')
-    await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: scenarioUid,
-      anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
-      description:
-        `Annual leave balance reduced by ${SCENARIO_DEDUCTED_HOURS.toFixed(1)}h, but only ` +
-        `${SCENARIO_APPROVED_HOURS.toFixed(1)}h was covered by an approved leave request. ` +
-        `${unaccounted.toFixed(1)}h were deducted without authorization — no approved request accounts ` +
-        `for the difference. Balance manipulation flagged for review.`,
-    })
+    const devonteUid = userIds['devonte.rivers@reddrumholdingsllc.com']
+    const lastWeek = await getMonday(1)
+    const twoWeeksAgo = await getMonday(2)
+
+    console.log('\n⚠️  Seeding a variety of anomalies...')
+    const anomalyRows: { user_id: string; anomaly_type: string; severity: string; description: string }[] = [
+      {
+        user_id: scenarioUid,
+        anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
+        description:
+          `Annual leave balance reduced by ${SCENARIO_DEDUCTED_HOURS.toFixed(1)}h, but only ` +
+          `${SCENARIO_APPROVED_HOURS.toFixed(1)}h was covered by an approved leave request. ` +
+          `${unaccounted.toFixed(1)}h were deducted without authorization.`,
+      },
+      {
+        user_id: scenarioUid,
+        anomaly_type: 'hours_shortage', severity: 'high',
+        description: `Week of ${twoWeeksAgo} shows 32.0h logged. 8.0h gap unaccounted for, with no approved leave covering it.`,
+      },
+      {
+        user_id: scenarioUid,
+        anomaly_type: 'missing_accrual', severity: 'medium',
+        description: 'Annual leave accrual not processed in 19 days (expected every 14).',
+      },
+    ]
+    if (devonteUid) {
+      anomalyRows.push(
+        {
+          user_id: devonteUid,
+          anomaly_type: 'missing_timesheet', severity: 'high',
+          description: `Timesheet not submitted for the week of ${lastWeek}. Friday deadline has passed.`,
+        },
+        {
+          user_id: devonteUid,
+          anomaly_type: 'late_entry_pattern', severity: 'low',
+          description: 'Late timesheet entry recorded more than 30 hours after the work date.',
+        },
+      )
+    }
+    for (const row of anomalyRows) {
+      await supabase.from('anomalies').insert({ org_id: ORG_ID, ...row })
+    }
   }
 
   console.log('\n✅ Seed complete!')
