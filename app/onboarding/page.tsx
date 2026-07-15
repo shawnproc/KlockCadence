@@ -81,8 +81,9 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ org_id: orgId, employees: csvEmployees }),
       })
-      if (!res.ok) throw new Error('Import failed.')
-      toast.success(`${csvEmployees.length} employees imported`)
+      const data = await res.json() as { error?: string; created?: number; skipped?: number; errored?: number }
+      if (!res.ok) throw new Error(data.error ?? 'Import failed.')
+      toast.success(`${data.created ?? 0} invited · ${data.skipped ?? 0} skipped · ${data.errored ?? 0} errors`)
       setStep(2)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Import failed.')

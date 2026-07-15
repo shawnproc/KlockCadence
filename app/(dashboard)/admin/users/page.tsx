@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { UserManagement } from '@/components/admin/user-management'
+import { CsvImport } from '@/components/admin/csv-import'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -48,6 +49,7 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">User Management</h1>
+      <CsvImport />
       <UserManagement
         users={users ?? []}
         orgId={profile.org_id}
