@@ -2,6 +2,16 @@
  * Seed Script — Red Drum Holdings LLC
  * Run: npx ts-node --project tsconfig.json scripts/seed.ts
  * Requires: SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL in env
+ *
+ * Minimal seed: exactly one user per role and per department.
+ *   admin / Operations, finance / Finance, manager / Engineering,
+ *   employee / Program Management.
+ *
+ * Includes one DCAA scenario: the employee is approved for 8h of leave
+ * but 16h are deducted from the balance. The 8h over-deduction is
+ * unaccounted for and surfaces as a CRITICAL unauthorized_balance_edit
+ * anomaly. Live over-deductions like this are caught by the
+ * detect_unauthorized_balance_edit trigger (see migration 013).
  */
 import { createClient } from '@supabase/supabase-js'
 
@@ -13,26 +23,19 @@ const supabase = createClient(
 
 const ORG_ID = 'a1b2c3d4-0001-0001-0001-000000000001'
 
+// One person per role and per department.
 const EMPLOYEES = [
   { email: 'marcus.hayes@reddrumholdingsllc.com', full_name: 'Marcus D. Hayes', role: 'admin', department: 'Operations', hire_date: '2019-03-15' },
   { email: 'sara.whitfield@reddrumholdingsllc.com', full_name: 'Sara T. Whitfield', role: 'finance', department: 'Finance', hire_date: '2020-07-01' },
   { email: 'devonte.rivers@reddrumholdingsllc.com', full_name: 'DeVonte L. Rivers', role: 'manager', department: 'Engineering', hire_date: '2021-01-10' },
-  { email: 'anita.kowalski@reddrumholdingsllc.com', full_name: 'Anita Kowalski', role: 'manager', department: 'Program Management', hire_date: '2020-11-05' },
-  { email: 'tyrell.brooks@reddrumholdingsllc.com', full_name: 'Tyrell J. Brooks', role: 'employee', department: 'Engineering', hire_date: '2022-02-14' },
-  { email: 'priya.nair@reddrumholdingsllc.com', full_name: 'Priya Nair', role: 'employee', department: 'Engineering', hire_date: '2022-06-20' },
   { email: 'james.okeefe@reddrumholdingsllc.com', full_name: 'James O\'Keefe', role: 'employee', department: 'Program Management', hire_date: '2023-03-01' },
-  { email: 'layla.chen@reddrumholdingsllc.com', full_name: 'Layla Chen', role: 'employee', department: 'Engineering', hire_date: '2023-08-14' },
-  { email: 'roberto.silva@reddrumholdingsllc.com', full_name: 'Roberto Silva', role: 'employee', department: 'Program Management', hire_date: '2021-05-17' },
-  { email: 'destiny.walker@reddrumholdingsllc.com', full_name: 'Destiny Walker', role: 'employee', department: 'Engineering', hire_date: '2024-01-08' },
-  { email: 'hassan.ahmed@reddrumholdingsllc.com', full_name: 'Hassan Ahmed', role: 'employee', department: 'Program Management', hire_date: '2022-09-19' },
-  { email: 'claire.dupont@reddrumholdingsllc.com', full_name: 'Claire Dupont', role: 'employee', department: 'Engineering', hire_date: '2023-11-27' },
-  { email: 'nathaniel.stone@reddrumholdingsllc.com', full_name: 'Nathaniel Stone', role: 'employee', department: 'Engineering', hire_date: '2020-04-06' },
-  { email: 'maya.patel@reddrumholdingsllc.com', full_name: 'Maya Patel', role: 'employee', department: 'Program Management', hire_date: '2021-10-12' },
-  // Phase 2 employees — added for specific anomaly scenarios
-  { email: 'sarah.johnson@reddrumholdingsllc.com', full_name: 'Sarah Johnson', role: 'employee', department: 'Engineering', hire_date: '2023-06-01' },
-  { email: 'james.williams@reddrumholdingsllc.com', full_name: 'James Williams', role: 'employee', department: 'Program Management', hire_date: '2022-04-15' },
-  { email: 'david.chen@reddrumholdingsllc.com', full_name: 'David Chen', role: 'employee', department: 'Engineering', hire_date: '2021-08-23' },
 ]
+
+// The employee at the center of the unauthorized-balance-edit scenario.
+const SCENARIO_EMPLOYEE_EMAIL = 'james.okeefe@reddrumholdingsllc.com'
+const SCENARIO_APPROVED_HOURS = 8   // hours the employee was actually approved for
+const SCENARIO_DEDUCTED_HOURS = 16  // hours actually removed from the balance
+const SCENARIO_ANNUAL_ACCRUED = 80
 
 const CHARGE_CODE_IDS = {
   navy: 'cc000001-0001-0001-0001-000000000001',
@@ -99,7 +102,7 @@ async function seed() {
     })
 
     if (profileError) console.error(`Profile error ${emp.email}:`, profileError.message)
-    else console.log(`  ✓ ${emp.full_name} (${emp.role})`)
+    else console.log(`  ✓ ${emp.full_name} (${emp.role} / ${emp.department})`)
   }
 
   // Leave balances
@@ -108,8 +111,10 @@ async function seed() {
     const uid = userIds[emp.email]
     if (!uid) continue
     for (const lt of ['annual', 'sick'] as const) {
-      const accrued = lt === 'annual' ? randomHours(80, 20) : randomHours(120, 30)
-      const used = randomHours(accrued * 0.3, 8)
+      const isScenario = emp.email === SCENARIO_EMPLOYEE_EMAIL && lt === 'annual'
+      // Scenario: 16h deducted (used) against an 80h accrual → 64h available.
+      const accrued = isScenario ? SCENARIO_ANNUAL_ACCRUED : (lt === 'annual' ? randomHours(80, 20) : randomHours(120, 30))
+      const used = isScenario ? SCENARIO_DEDUCTED_HOURS : randomHours(accrued * 0.3, 8)
       await supabase.from('leave_balances').upsert({
         org_id: ORG_ID, user_id: uid, leave_type: lt,
         accrued_hours: accrued, used_hours: used, pending_hours: 0,
@@ -118,9 +123,10 @@ async function seed() {
     }
   }
 
-  // Timesheets — 4 weeks of data for employees
+  // Timesheets — 4 weeks of data for employees and managers
   console.log('\n🕐 Seeding timesheets...')
   const employees = EMPLOYEES.filter((e) => ['employee', 'manager'].includes(e.role))
+  const approverId = userIds['devonte.rivers@reddrumholdingsllc.com']
 
   for (let weekAgo = 4; weekAgo >= 1; weekAgo--) {
     const weekStart = await getMonday(weekAgo)
@@ -133,7 +139,7 @@ async function seed() {
         status: weekAgo > 1 ? 'approved' : 'submitted',
         certified_by_employee: true,
         certified_at: addDays(weekStart, 4) + 'T17:00:00Z',
-        approved_by: weekAgo > 1 ? userIds['devonte.rivers@reddrumholdingsllc.com'] : null,
+        approved_by: weekAgo > 1 ? approverId ?? null : null,
         approved_at: weekAgo > 1 ? addDays(weekStart, 5) + 'T10:00:00Z' : null,
       }).select().single()
 
@@ -161,106 +167,43 @@ async function seed() {
     }
   }
 
-  // Pre-seeded anomalies
-  console.log('\n⚠️  Seeding anomalies...')
-  const destinyId = userIds['destiny.walker@reddrumholdingsllc.com']
-  const hassanId = userIds['hassan.ahmed@reddrumholdingsllc.com']
-  const claireId = userIds['claire.dupont@reddrumholdingsllc.com']
+  // Scenario: employee approved for 8h leave, but 16h deducted from balance.
+  console.log('\n🏖️  Seeding leave request for the balance-edit scenario...')
+  const scenarioUid = userIds[SCENARIO_EMPLOYEE_EMAIL]
 
-  if (destinyId) {
+  if (scenarioUid) {
+    // The one leave request the employee actually submitted and had approved — 8h.
+    await supabase.from('leave_requests').insert({
+      org_id: ORG_ID, user_id: scenarioUid, leave_type: 'annual',
+      requested_hours: SCENARIO_APPROVED_HOURS,
+      start_date: addDays(await getMonday(1), 2), end_date: addDays(await getMonday(1), 2),
+      status: 'approved',
+      reviewed_by: approverId ?? null,
+      reviewed_at: addDays(await getMonday(1), 1) + 'T10:00:00Z',
+      employee_notes: 'Single personal day.',
+      reviewer_notes: 'Approved — 8 hours.',
+    })
+
+    // The unauthorized over-deduction: 16h were removed but only 8h were approved.
+    const unaccounted = SCENARIO_DEDUCTED_HOURS - SCENARIO_APPROVED_HOURS
+    console.log('\n⚠️  Seeding unauthorized_balance_edit anomaly...')
     await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: destinyId,
+      org_id: ORG_ID, user_id: scenarioUid,
       anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
-      description: 'Annual leave accrued_hours: 54 → 46. Balance reduced by 8 hours without an approved leave request. No corresponding leave request found.',
-    })
-  }
-  if (hassanId) {
-    await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: hassanId,
-      anomaly_type: 'missing_timesheet', severity: 'high',
-      description: 'Timesheet not submitted for week of ' + await getMonday(2),
-    })
-  }
-  if (claireId) {
-    for (let i = 0; i < 3; i++) {
-      await supabase.from('anomalies').insert({
-        org_id: ORG_ID, user_id: claireId,
-        anomaly_type: 'late_entry_pattern', severity: i === 2 ? 'high' : 'low',
-        description: i === 2
-          ? 'Pattern: 3 late timesheet entries in the past 30 days'
-          : `Late entry: work_date=${await getMonday(i + 1)}, entry submitted 30+ hours after work date`,
-      })
-    }
-  }
-
-  // Phase 2 anomalies — specific scenarios driving KlockCadence value story
-  const sarahId = userIds['sarah.johnson@reddrumholdingsllc.com']
-  const jamesWilliamsId = userIds['james.williams@reddrumholdingsllc.com']
-  const davidChenId = userIds['david.chen@reddrumholdingsllc.com']
-
-  if (sarahId) {
-    await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: sarahId,
-      anomaly_type: 'unauthorized_balance_edit', severity: 'critical',
-      created_at: '2026-07-04T14:14:00Z',
-      description: 'Annual leave balance reduced by 8 hours without an approved leave request. Balance changed from 54.0h to 46.0h on Jul 4 2026 at 2:14 PM by finance user. No corresponding approved leave request found for this period.',
-    })
-  }
-  if (jamesWilliamsId) {
-    await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: jamesWilliamsId,
-      anomaly_type: 'missing_timesheet', severity: 'high',
-      created_at: '2026-06-30T08:00:00Z',
-      description: 'Timesheet not submitted for week of Jun 23 – Jun 27 2026. Friday deadline passed 72 hours ago. Contract FA8750-22-C-0012 has unbilled hours.',
-    })
-  }
-  if (davidChenId) {
-    await supabase.from('anomalies').insert({
-      org_id: ORG_ID, user_id: davidChenId,
-      anomaly_type: 'hours_shortage', severity: 'high',
-      created_at: '2026-07-05T09:00:00Z',
-      description: 'Week of Jun 30 – Jul 4 2026 shows 32 hours logged. 8 hour gap unaccounted for. No approved leave request covers the missing hours.',
-    })
-  }
-
-  // Leave requests
-  console.log('\n🏖️  Seeding leave requests...')
-  const tyrell = userIds['tyrell.brooks@reddrumholdingsllc.com']
-  const priya = userIds['priya.nair@reddrumholdingsllc.com']
-  const roberto = userIds['roberto.silva@reddrumholdingsllc.com']
-
-  if (tyrell) {
-    await supabase.from('leave_requests').insert({
-      org_id: ORG_ID, user_id: tyrell, leave_type: 'annual',
-      requested_hours: 16, start_date: addDays(await getMonday(0), 7), end_date: addDays(await getMonday(0), 8),
-      status: 'pending', employee_notes: 'Family vacation',
-    })
-  }
-  const devonteId = userIds['devonte.rivers@reddrumholdingsllc.com']
-  const anitaId = userIds['anita.kowalski@reddrumholdingsllc.com']
-
-  if (priya) {
-    await supabase.from('leave_requests').insert({
-      org_id: ORG_ID, user_id: priya, leave_type: 'sick',
-      requested_hours: 8, start_date: addDays(await getMonday(1), 2), end_date: addDays(await getMonday(1), 2),
-      status: 'approved', reviewed_by: devonteId ?? null, reviewed_at: addDays(await getMonday(1), 1) + 'T10:00:00Z',
-    })
-  }
-  if (roberto) {
-    await supabase.from('leave_requests').insert({
-      org_id: ORG_ID, user_id: roberto, leave_type: 'annual',
-      requested_hours: 40, start_date: addDays(await getMonday(0), 14), end_date: addDays(await getMonday(0), 18),
-      status: 'denied', reviewed_by: anitaId ?? null, reviewed_at: new Date().toISOString(),
-      reviewer_notes: 'Insufficient balance for this period.',
+      description:
+        `Annual leave balance reduced by ${SCENARIO_DEDUCTED_HOURS.toFixed(1)}h, but only ` +
+        `${SCENARIO_APPROVED_HOURS.toFixed(1)}h was covered by an approved leave request. ` +
+        `${unaccounted.toFixed(1)}h were deducted without authorization — no approved request accounts ` +
+        `for the difference. Balance manipulation flagged for review.`,
     })
   }
 
   console.log('\n✅ Seed complete!')
   console.log('\n📋 Test credentials:')
-  console.log('  Admin:   marcus.hayes@reddrumholdingsllc.com / KlockCadence2025!')
-  console.log('  Finance: sara.whitfield@reddrumholdingsllc.com / KlockCadence2025!')
-  console.log('  Manager: devonte.rivers@reddrumholdingsllc.com / KlockCadence2025!')
-  console.log('  Employee: tyrell.brooks@reddrumholdingsllc.com / KlockCadence2025!')
+  console.log('  Admin:    marcus.hayes@reddrumholdingsllc.com / KlockCadence2025!')
+  console.log('  Finance:  sara.whitfield@reddrumholdingsllc.com / KlockCadence2025!')
+  console.log('  Manager:  devonte.rivers@reddrumholdingsllc.com / KlockCadence2025!')
+  console.log('  Employee: james.okeefe@reddrumholdingsllc.com / KlockCadence2025!')
 }
 
 seed().catch((e) => {
