@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { writeAuditLog } from '@/lib/audit/logger'
 import type { UserRole } from '@/types'
@@ -15,14 +16,21 @@ interface RawRow {
   hire_date?: unknown
 }
 
+// Readable temporary password the employee replaces on first login.
+function tempPassword(): string {
+  return 'Kc-' + randomBytes(6).toString('hex') // e.g. Kc-a1b2c3d4e5f6
+}
+
 /**
  * POST /api/admin/bulk-import
  * Body: { employees: RawRow[] }  (CSV columns: full_name, email, role, department, hire_date)
  *
- * Admin-only. For each valid row: sends a Supabase invite email (the employee
- * sets their own password) and creates their profile in the admin's org.
- * Existing emails are skipped; invalid rows are reported. Nothing is faked —
- * the response returns exact created / skipped / error counts.
+ * Admin-only, email-free. For each valid row: creates a confirmed auth user
+ * with a generated temporary password and a must_change_password flag in
+ * user_metadata, then creates the profile in the admin's org. The temp
+ * passwords are returned ONCE so the admin can distribute them; on first login
+ * the employee is forced to set their own password. Existing emails are
+ * skipped; invalid rows are reported.
  */
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -55,11 +63,9 @@ export async function POST(request: Request) {
   }
 
   const svc = createServiceClient()
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
-  const redirectTo = `${appUrl}/api/auth/callback?next=/auth/set-password`
   const today = new Date().toISOString().split('T')[0]!
 
-  const created: string[] = []
+  const created: { email: string; full_name: string; temp_password: string }[] = []
   const skipped: { email: string; reason: string }[] = []
   const errors: { row: number; reason: string }[] = []
 
@@ -82,7 +88,6 @@ export async function POST(request: Request) {
       ? r.hire_date.trim()
       : today
 
-    // Skip if a profile with this email already exists in the org.
     const { data: existing } = await svc
       .from('users')
       .select('id')
@@ -91,23 +96,25 @@ export async function POST(request: Request) {
       .maybeSingle()
     if (existing) { skipped.push({ email, reason: 'Already exists.' }); continue }
 
-    // Invite: creates the auth user and emails a set-password link.
-    const { data: invited, error: inviteError } = await svc.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
-      redirectTo,
+    const temp = tempPassword()
+    const { data: authUser, error: createError } = await svc.auth.admin.createUser({
+      email,
+      password: temp,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, must_change_password: true },
     })
 
-    if (inviteError || !invited?.user) {
-      if ((inviteError?.message ?? '').toLowerCase().includes('already')) {
+    if (createError || !authUser?.user) {
+      if ((createError?.message ?? '').toLowerCase().includes('already')) {
         skipped.push({ email, reason: 'Already registered.' })
       } else {
-        errors.push({ row: i + 1, reason: `${email}: ${inviteError?.message ?? 'invite failed'}` })
+        errors.push({ row: i + 1, reason: `${email}: ${createError?.message ?? 'account creation failed'}` })
       }
       continue
     }
 
     const { error: profileError } = await svc.from('users').insert({
-      id: invited.user.id,
+      id: authUser.user.id,
       org_id: profile.org_id,
       full_name: fullName,
       email,
@@ -117,17 +124,22 @@ export async function POST(request: Request) {
       is_active: true,
     })
 
-    if (profileError) { errors.push({ row: i + 1, reason: `${email}: ${profileError.message}` }); continue }
+    if (profileError) {
+      // Roll back the orphaned auth user so a retry can succeed.
+      await svc.auth.admin.deleteUser(authUser.user.id)
+      errors.push({ row: i + 1, reason: `${email}: ${profileError.message}` })
+      continue
+    }
 
     await writeAuditLog({
       org_id: profile.org_id,
       actor_id: user.id,
       action: 'USER_CREATED',
       target_table: 'users',
-      target_id: invited.user.id,
+      target_id: authUser.user.id,
       new_value: { full_name: fullName, email, role, department, imported: true },
     })
-    created.push(email)
+    created.push({ email, full_name: fullName, temp_password: temp })
   }
 
   return NextResponse.json({
@@ -135,6 +147,7 @@ export async function POST(request: Request) {
     created: created.length,
     skipped: skipped.length,
     errored: errors.length,
+    credentials: created, // shown ONCE for the admin to distribute
     details: { skipped, errors },
   })
 }

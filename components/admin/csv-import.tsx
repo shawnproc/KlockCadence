@@ -8,10 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { Upload, FileText, X } from 'lucide-react'
 
+interface Credential {
+  email: string
+  full_name: string
+  temp_password: string
+}
+
 interface ImportResult {
   created: number
   skipped: number
   errored: number
+  credentials?: Credential[]
   details?: {
     skipped: { email: string; reason: string }[]
     errors: { row: number; reason: string }[]
@@ -40,6 +47,21 @@ export function CsvImport() {
       },
       error: () => toast.error('Could not parse that CSV.'),
     })
+  }
+
+  function downloadCredentials(creds: Credential[]) {
+    const csv = Papa.unparse(creds.map((c) => ({
+      full_name: c.full_name,
+      email: c.email,
+      temporary_password: c.temp_password,
+    })))
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'klockcadence-temporary-passwords.csv'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleImport() {
@@ -105,8 +127,41 @@ export function CsvImport() {
         </Button>
 
         {result && (
-          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+          <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-2">
             <p><span className="font-medium text-green-700">{result.created}</span> created · <span className="font-medium">{result.skipped}</span> skipped · <span className={result.errored > 0 ? 'font-medium text-red-600' : 'font-medium'}>{result.errored}</span> errored</p>
+
+            {result.credentials && result.credentials.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-amber-700">Temporary passwords — shown once. Save and distribute now.</p>
+                  <Button size="sm" variant="outline" onClick={() => downloadCredentials(result.credentials!)}>
+                    Download CSV
+                  </Button>
+                </div>
+                <div className="rounded border bg-background overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-muted/50 text-left">
+                        <th className="px-2 py-1 font-medium">Employee</th>
+                        <th className="px-2 py-1 font-medium">Email</th>
+                        <th className="px-2 py-1 font-medium">Temporary password</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.credentials.map((c) => (
+                        <tr key={c.email} className="border-t">
+                          <td className="px-2 py-1">{c.full_name}</td>
+                          <td className="px-2 py-1">{c.email}</td>
+                          <td className="px-2 py-1 font-mono">{c.temp_password}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-muted-foreground">Employees log in with these, then set their own password on first login.</p>
+              </div>
+            )}
+
             {result.details?.errors?.slice(0, 8).map((err, i) => (
               <p key={i} className="text-red-600">Row {err.row}: {err.reason}</p>
             ))}

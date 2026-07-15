@@ -14,6 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login')
 
+  // New hires imported with a temporary password must set their own first.
+  if (user.user_metadata?.must_change_password) redirect('/auth/set-password')
+
   const { data: profile } = await supabase
     .from('users')
     .select('full_name, role, org_id, is_active, organizations(name, policy_version, policy_text)')

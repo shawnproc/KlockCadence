@@ -33,7 +33,11 @@ export default function SetPasswordPage() {
     if (password !== confirm) { setError('Passwords do not match.'); return }
 
     setLoading(true)
-    const { error: updateError } = await supabase.auth.updateUser({ password })
+    // Set the password and clear the must-change flag in one call.
+    const { error: updateError } = await supabase.auth.updateUser({
+      password,
+      data: { must_change_password: false },
+    })
     if (updateError) {
       setError(updateError.message)
       setLoading(false)

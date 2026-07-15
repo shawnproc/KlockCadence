@@ -81,9 +81,30 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ org_id: orgId, employees: csvEmployees }),
       })
-      const data = await res.json() as { error?: string; created?: number; skipped?: number; errored?: number }
+      const data = await res.json() as {
+        error?: string
+        created?: number
+        skipped?: number
+        errored?: number
+        credentials?: { email: string; full_name: string; temp_password: string }[]
+      }
       if (!res.ok) throw new Error(data.error ?? 'Import failed.')
-      toast.success(`${data.created ?? 0} invited · ${data.skipped ?? 0} skipped · ${data.errored ?? 0} errors`)
+
+      // Temp passwords are shown once — download them so they aren't lost.
+      if (data.credentials && data.credentials.length > 0) {
+        const csv = Papa.unparse(data.credentials.map((c) => ({
+          full_name: c.full_name, email: c.email, temporary_password: c.temp_password,
+        })))
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'klockcadence-temporary-passwords.csv'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+
+      toast.success(`${data.created ?? 0} added · ${data.skipped ?? 0} skipped · ${data.errored ?? 0} errors — temporary passwords downloaded.`)
       setStep(2)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Import failed.')
