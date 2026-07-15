@@ -269,7 +269,7 @@ export default async function DashboardPage() {
         {(profile.role === 'manager' || profile.role === 'admin') && (
           <Card className={`card-elevated ${pendingTimesheets > 0 ? 'stat-accent-orange' : 'stat-accent-navy'}`}>
             <CardContent className="pt-5">
-              <Link href="/timesheets" className="block">
+              <Link href="/timesheets/approvals" className="block">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Pending Approval</p>

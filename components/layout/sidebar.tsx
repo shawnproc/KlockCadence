@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   Shield,
   Command,
+  ClipboardCheck,
 } from 'lucide-react'
 
 interface NavItem {
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: Home, roles: ['employee', 'manager', 'admin', 'finance'] },
   { href: '/timesheets', label: 'Timesheets', icon: Clock, roles: ['employee', 'manager', 'admin', 'finance'] },
   { href: '/leave', label: 'Leave', icon: Calendar, roles: ['employee', 'manager', 'admin', 'finance'] },
+  { href: '/timesheets/approvals', label: 'Approvals', icon: ClipboardCheck, roles: ['manager', 'admin'] },
   { href: '/timesheets/proxy', label: 'Proxy Entry', icon: UserCheck, roles: ['manager', 'admin'] },
   { href: '/anomalies', label: 'Anomalies', icon: AlertTriangle, roles: ['manager', 'admin', 'finance'] },
   { href: '/reports', label: 'DCAA Reports', icon: BarChart3, roles: ['admin', 'finance'] },

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, Clock, Calendar, AlertTriangle, BarChart3, Users,
   ScrollText, Building2, Settings, UserCheck, FileSpreadsheet, Shield,
-  Search, ArrowRight, Command,
+  Search, ArrowRight, Command, ClipboardCheck,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -25,6 +25,7 @@ const ALL_COMMANDS: CommandItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard', roles: ['employee', 'manager', 'admin', 'finance'], group: 'Navigate' },
   { id: 'timesheets', label: 'Timesheets', description: 'View and submit your timesheet', icon: Clock, href: '/timesheets', roles: ['employee', 'manager', 'admin', 'finance'], group: 'Navigate', keywords: ['time', 'hours'] },
   { id: 'leave', label: 'Leave', description: 'View your leave balances', icon: Calendar, href: '/leave', roles: ['employee', 'manager', 'admin', 'finance'], group: 'Navigate', keywords: ['pto', 'vacation', 'sick'] },
+  { id: 'approvals', label: 'Timesheet Approvals', description: 'Review and approve submitted timesheets', icon: ClipboardCheck, href: '/timesheets/approvals', roles: ['manager', 'admin'], group: 'Actions', keywords: ['approve', 'timesheet', 'review'] },
   { id: 'proxy-entry', label: 'Proxy Entry', description: 'Enter time on behalf of employee', icon: UserCheck, href: '/timesheets/proxy', roles: ['manager', 'admin'], group: 'Actions', keywords: ['proxy', 'absence'] },
   { id: 'anomalies', label: 'Anomalies', description: 'View compliance alerts', icon: AlertTriangle, href: '/anomalies', roles: ['manager', 'admin', 'finance'], group: 'Navigate', keywords: ['alerts', 'compliance', 'issues'] },
   { id: 'reports', label: 'DCAA Reports', description: 'Generate audit packages', icon: BarChart3, href: '/reports', roles: ['admin', 'finance'], group: 'Navigate', keywords: ['dcaa', 'audit', 'pdf'] },
