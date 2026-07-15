@@ -1,8 +1,4 @@
 export type UserRole = 'employee' | 'manager' | 'admin' | 'finance'
-export type IntegrationType = 'quickbooks' | 'gusto' | 'adp' | 'xero' | 'sage_intacct' | 'deltek'
-export type IntegrationStatus = 'connected' | 'disconnected' | 'error'
-export type SyncFrequency = 'realtime' | 'daily' | 'manual'
-export type SyncEventStatus = 'success' | 'error' | 'partial'
 export type HolidaySchedule = 'federal' | 'custom'
 export type TimesheetStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 export type LeaveType = 'annual' | 'sick' | 'comp' | 'jury_duty' | 'bereavement' | 'fmla' | 'unpaid'
@@ -159,65 +155,6 @@ export interface Anomaly {
   resolved_by: string | null
   resolved_at: string | null
   created_at: string
-}
-
-// ── Integration types ────────────────────────────────────────
-
-export interface Integration {
-  id: string
-  org_id: string
-  integration_type: IntegrationType
-  status: IntegrationStatus
-  // access_token_enc and refresh_token_enc intentionally omitted — never send to client
-  token_expires_at: string | null
-  realm_id: string | null
-  last_sync_at: string | null
-  last_sync_status: SyncEventStatus | null
-  last_error_message: string | null
-  sync_frequency: SyncFrequency
-  error_notify_user_id: string | null
-  config: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
-
-export interface IntegrationMapping {
-  id: string
-  org_id: string
-  integration_type: IntegrationType
-  kc_user_id: string
-  external_id: string
-  external_name: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface IntegrationCodeMapping {
-  id: string
-  org_id: string
-  integration_type: IntegrationType
-  charge_code_id: string
-  external_code: string
-  external_name: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface IntegrationSyncEvent {
-  id: string
-  org_id: string
-  integration_type: IntegrationType
-  triggered_by: string | null
-  status: SyncEventStatus
-  records_synced: number
-  error_message: string | null
-  details: Record<string, unknown> | null
-  created_at: string
-}
-
-// Extended integration types with joins
-export interface IntegrationSyncEventWithActor extends IntegrationSyncEvent {
-  users: Pick<User, 'full_name'> | null
 }
 
 // Extended types with joins

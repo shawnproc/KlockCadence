@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, Clock, Calendar, AlertTriangle, BarChart3, Users, FileText,
   ScrollText, Building2, Settings, UserCheck, FileSpreadsheet, Shield,
-  Search, ArrowRight, Command, Plug,
+  Search, ArrowRight, Command,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -34,7 +34,6 @@ const ALL_COMMANDS: CommandItem[] = [
   { id: 'users', label: 'Users', description: 'Manage team members', icon: Users, href: '/admin/users', roles: ['admin'], group: 'Navigate' },
   { id: 'charge-codes', label: 'Charge Codes', description: 'Manage contract codes', icon: Building2, href: '/admin/charge-codes', roles: ['admin'], group: 'Navigate' },
   { id: 'policy-manager', label: 'Policy Manager', description: 'Generate & publish policy versions', icon: Shield, href: '/admin/policy', roles: ['admin'], group: 'Actions', keywords: ['policy', 'dcaa', 'pdf'] },
-  { id: 'integrations', label: 'Integrations', description: 'QuickBooks, Gusto, ADP, Xero, Sage, Deltek', icon: Plug, href: '/admin/integrations', roles: ['admin'], group: 'Navigate', keywords: ['quickbooks', 'gusto', 'adp', 'xero', 'sync', 'payroll'] },
   { id: 'org-settings', label: 'Org Settings', description: 'Organization configuration', icon: Settings, href: '/admin/org', roles: ['admin'], group: 'Navigate' },
 ]
 
