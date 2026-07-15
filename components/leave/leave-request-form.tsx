@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { validateLeaveRequestBalance } from '@/lib/dcaa/validators'
 import { getLeaveTypeLabel } from '@/lib/leave/accrual'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,15 +13,13 @@ import { toast } from 'sonner'
 import type { LeaveBalance, LeaveType } from '@/types'
 
 interface LeaveRequestFormProps {
-  orgId: string
-  userId: string
   balances: LeaveBalance[]
 }
 
 const LEAVE_TYPES: LeaveType[] = ['annual', 'sick', 'comp', 'jury_duty', 'bereavement', 'fmla', 'unpaid']
 
-export function LeaveRequestForm({ orgId, userId, balances }: LeaveRequestFormProps) {
-  const supabase = createClient()
+export function LeaveRequestForm({ balances }: LeaveRequestFormProps) {
+  const router = useRouter()
   const [leaveType, setLeaveType] = useState<LeaveType>('annual')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -41,6 +39,7 @@ export function LeaveRequestForm({ orgId, userId, balances }: LeaveRequestFormPr
       return
     }
 
+    // Instant client-side check for immediate feedback; the server is authoritative.
     if (selectedBalance) {
       const validation = validateLeaveRequestBalance(selectedBalance, { requested_hours: requestedHours })
       if (!validation.valid) {
@@ -51,24 +50,30 @@ export function LeaveRequestForm({ orgId, userId, balances }: LeaveRequestFormPr
 
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('leave_requests').insert({
-        org_id: orgId,
-        user_id: userId,
-        leave_type: leaveType,
-        requested_hours: requestedHours,
-        start_date: startDate,
-        end_date: endDate,
-        employee_notes: notes || null,
-        status: 'pending',
+      const res = await fetch('/api/leave/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leave_type: leaveType,
+          requested_hours: requestedHours,
+          start_date: startDate,
+          end_date: endDate,
+          employee_notes: notes || null,
+        }),
       })
+      const data = await res.json() as { error?: string; balance_tracked?: boolean }
+      if (!res.ok) throw new Error(data.error ?? 'Submission failed.')
 
-      if (error) throw new Error(error.message)
-
-      toast.success('Leave request submitted.')
+      toast.success(
+        data.balance_tracked
+          ? `Leave approved — ${requestedHours}h deducted from your balance.`
+          : 'Leave approved.'
+      )
       setStartDate('')
       setEndDate('')
       setHours('')
       setNotes('')
+      router.refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Submission failed.')
     } finally {

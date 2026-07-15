@@ -65,17 +65,6 @@ export default async function DashboardPage() {
     openAnomalies = count ?? 0
   }
 
-  // Pending leave requests (manager/admin)
-  let pendingLeave = 0
-  if (profile.role === 'manager' || profile.role === 'admin') {
-    const { count } = await supabase
-      .from('leave_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('org_id', profile.org_id)
-      .eq('status', 'pending')
-    pendingLeave = count ?? 0
-  }
-
   // ── Admin/Finance: compliance score + activity feed ──────────────────────
   let complianceScore = 0
   let complianceBreakdown: ComplianceBreakdownItem[] = []
@@ -313,22 +302,6 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        {(profile.role === 'manager' || profile.role === 'admin') && pendingLeave > 0 && (
-          <Card className="card-elevated stat-accent-purple">
-            <CardContent className="pt-5">
-              <Link href="/leave/requests" className="block">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Leave Requests</p>
-                    <p className="text-2xl font-bold mt-1">{pendingLeave}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">pending review</p>
-                  </div>
-                  <Calendar className="h-5 w-5 text-purple-400 mt-0.5" />
-                </div>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       {/* Compliance score + Activity feed (admin/finance) */}

@@ -44,11 +44,7 @@ export default async function LeavePage() {
       <LeaveBalanceCards balances={balances ?? []} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LeaveRequestForm
-          orgId={profile.org_id}
-          userId={user.id}
-          balances={balances ?? []}
-        />
+        <LeaveRequestForm balances={balances ?? []} />
 
         <Card>
           <CardHeader>
