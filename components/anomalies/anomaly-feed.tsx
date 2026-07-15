@@ -5,7 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import { cn, formatDateTime } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { AlertTriangle, AlertCircle, Info, Shield, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  AlertTriangle, AlertCircle, Info, Shield, CheckCircle2, ChevronDown, ChevronUp,
+  Calendar, FileText, Clock, ScrollText, BarChart3, FileSpreadsheet, UserCheck,
+} from 'lucide-react'
 import type { AnomalySeverity, AnomalyType } from '@/types'
 
 interface AnomalyRow {
@@ -32,16 +35,80 @@ const SEVERITY_CONFIG: Record<AnomalySeverity, {
 
 const SEVERITY_ORDER: Record<AnomalySeverity, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
-const TYPE_LABELS: Record<AnomalyType, string> = {
-  insufficient_balance: 'Insufficient Balance',
-  unauthorized_balance_edit: 'Unauthorized Balance Edit',
-  missing_timesheet: 'Missing Timesheet',
-  hours_shortage: 'Hours Shortage',
-  timesheet_modified_after_certification: 'Post-Certification Modification',
-  late_entry_pattern: 'Late Entry Pattern',
-  missing_accrual: 'Missing Accrual',
-  policy_unacknowledged: 'Policy Not Acknowledged',
-  proxy_entry_unacknowledged: 'Proxy Entry Not Acknowledged',
+interface TypeInfo {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  meaning: string
+  why: string
+  action: string
+}
+
+// Per-type explanation so each anomaly reads distinctly — what it is, why it's
+// a DCAA concern, and how to resolve it — instead of a generic severity chip.
+const TYPE_INFO: Record<AnomalyType, TypeInfo> = {
+  insufficient_balance: {
+    label: 'Insufficient Balance',
+    icon: Calendar,
+    meaning: 'A leave request is for more hours than the employee has available.',
+    why: 'Approving leave beyond the accrued balance drives the balance negative and misstates leave liability on federal contracts.',
+    action: 'Verify the balance, then reduce the request, correct the accrual, or deny it.',
+  },
+  unauthorized_balance_edit: {
+    label: 'Unauthorized Balance Edit',
+    icon: Shield,
+    meaning: 'A leave balance was reduced by more hours than any approved request accounts for.',
+    why: 'Balance changes without a matching approved request are a classic sign of manipulation and a direct DCAA audit finding.',
+    action: 'Trace the change in the Audit Log, reconcile it against approved leave requests, then correct or formally document the adjustment.',
+  },
+  missing_timesheet: {
+    label: 'Missing Timesheet',
+    icon: FileText,
+    meaning: 'An employee has not submitted a timesheet for a week that has already closed.',
+    why: 'DCAA requires contemporaneous time recording; unrecorded labor puts contract billing and compliance at risk.',
+    action: 'Remind the employee to submit, or enter the time by proxy with documented justification.',
+  },
+  hours_shortage: {
+    label: 'Hours Shortage',
+    icon: Clock,
+    meaning: 'The hours logged for the week fall short of the expected total, with no approved leave covering the gap.',
+    why: 'Total-time accounting requires every working hour to be accounted for; unexplained gaps break that rule.',
+    action: 'Have the employee complete the missing hours or submit a leave request that covers them.',
+  },
+  timesheet_modified_after_certification: {
+    label: 'Post-Certification Modification',
+    icon: ScrollText,
+    meaning: 'A timesheet entry was changed after the employee had already certified the timesheet.',
+    why: 'Certification is a signed attestation under the False Claims Act; any later edit invalidates it and requires re-certification.',
+    action: 'Investigate the change, require the employee to re-certify, and preserve the audit trail.',
+  },
+  late_entry_pattern: {
+    label: 'Late Entry Pattern',
+    icon: AlertTriangle,
+    meaning: 'Time was recorded well after the work date (24h+), repeatedly.',
+    why: 'Contemporaneous entry is a DCAA cornerstone; habitual late recording undermines timecard reliability.',
+    action: 'Counsel the employee on daily entry and monitor whether the pattern continues.',
+  },
+  missing_accrual: {
+    label: 'Missing Accrual',
+    icon: BarChart3,
+    meaning: 'Leave accrual has not been processed within the expected pay-period cycle.',
+    why: 'Skipped accruals understate leave balances and create payroll and leave-liability discrepancies.',
+    action: 'Run the accrual process and confirm the last-accrual date advances.',
+  },
+  policy_unacknowledged: {
+    label: 'Policy Not Acknowledged',
+    icon: FileSpreadsheet,
+    meaning: 'An employee has not acknowledged the current timekeeping policy version.',
+    why: 'DCAA expects documented acknowledgment of the timekeeping policy; unacknowledged staff are a compliance gap.',
+    action: 'Remind the employee — they will be prompted to acknowledge at next login.',
+  },
+  proxy_entry_unacknowledged: {
+    label: 'Proxy Entry Not Acknowledged',
+    icon: UserCheck,
+    meaning: "Time entered on an employee's behalf has not yet been confirmed by that employee.",
+    why: 'A proxy entry only becomes a valid, attributable record once the employee acknowledges it.',
+    action: 'Ask the employee to review and acknowledge the proxy entries on their timesheet.',
+  },
 }
 
 function getInitials(name: string | undefined | null) {
@@ -137,7 +204,8 @@ export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) 
         <div className="space-y-2">
           {filtered.map((anomaly) => {
             const config = SEVERITY_CONFIG[anomaly.severity]
-            const Icon = config.icon
+            const info = TYPE_INFO[anomaly.anomaly_type]
+            const TypeIcon = info.icon
             const isExpanded = expanded[anomaly.id] ?? false
 
             return (
@@ -157,9 +225,9 @@ export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) 
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <TypeIcon className="h-3.5 w-3.5 shrink-0" />
                       <span className="text-xs font-bold tracking-wide">{config.label}</span>
-                      <span className="text-xs font-medium">{TYPE_LABELS[anomaly.anomaly_type]}</span>
+                      <span className="text-xs font-medium">{info.label}</span>
                       {anomaly.resolved && (
                         <span className="flex items-center gap-1 text-xs text-green-600">
                           <CheckCircle2 className="h-3 w-3" />
@@ -178,14 +246,28 @@ export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) 
 
                     {/* Expanded details */}
                     {isExpanded && (
-                      <div className="mt-3 pt-3 border-t border-current/10 space-y-1 text-xs opacity-80">
-                        {anomaly.users?.email && (
-                          <p><span className="font-medium">Email:</span> {anomaly.users.email}</p>
-                        )}
-                        <p><span className="font-medium">Status:</span> {anomaly.resolved ? 'Resolved' : 'Open'}</p>
-                        {anomaly.resolved_at && (
-                          <p><span className="font-medium">Resolved at:</span> {formatDateTime(anomaly.resolved_at)}</p>
-                        )}
+                      <div className="mt-3 pt-3 border-t border-current/10 space-y-3 text-xs opacity-90">
+                        <div>
+                          <p className="font-semibold uppercase tracking-wide opacity-70">What this means</p>
+                          <p className="mt-0.5">{info.meaning}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold uppercase tracking-wide opacity-70">Why it matters</p>
+                          <p className="mt-0.5">{info.why}</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold uppercase tracking-wide opacity-70">Recommended action</p>
+                          <p className="mt-0.5">{info.action}</p>
+                        </div>
+                        <div className="pt-1 space-y-1 opacity-80">
+                          {anomaly.users?.email && (
+                            <p><span className="font-medium">Email:</span> {anomaly.users.email}</p>
+                          )}
+                          <p><span className="font-medium">Status:</span> {anomaly.resolved ? 'Resolved' : 'Open'}</p>
+                          {anomaly.resolved_at && (
+                            <p><span className="font-medium">Resolved at:</span> {formatDateTime(anomaly.resolved_at)}</p>
+                          )}
+                        </div>
                       </div>
                     )}
 
