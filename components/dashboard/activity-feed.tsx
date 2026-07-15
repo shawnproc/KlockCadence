@@ -29,6 +29,7 @@ function toPlainEnglish(entry: ActivityEntry): { text: string; isAlert: boolean 
   if (a === 'LEAVE_REQUEST_DENIED') return { text: `${name} denied a leave request`, isAlert: true }
   if (a === 'LEAVE_REQUEST_CANCELLED') return { text: `${name} cancelled a leave request`, isAlert: false }
   if (a === 'ANOMALY_RESOLVED') return { text: `${name} resolved a compliance anomaly`, isAlert: false }
+  if (a === 'ANOMALY_DELETED') return { text: `${name} deleted a compliance anomaly`, isAlert: true }
   if (a === 'BALANCE_MODIFIED') return { text: 'Leave balance modified — compliance review required', isAlert: true }
   if (a === 'USER_CREATED') return { text: `${name} added a new employee`, isAlert: false }
   if (a === 'USER_ROLE_CHANGED') return { text: `${name} changed an employee role`, isAlert: true }

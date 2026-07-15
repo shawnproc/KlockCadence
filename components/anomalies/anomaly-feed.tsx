@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import {
   AlertTriangle, AlertCircle, Info, Shield, CheckCircle2, ChevronDown, ChevronUp,
-  Calendar, FileText, Clock, ScrollText, BarChart3, FileSpreadsheet, UserCheck,
+  Calendar, FileText, Clock, ScrollText, BarChart3, FileSpreadsheet, UserCheck, Trash2, Layers,
 } from 'lucide-react'
 import type { AnomalySeverity, AnomalyType } from '@/types'
 
 interface AnomalyRow {
   id: string
+  user_id: string
   anomaly_type: AnomalyType
   severity: AnomalySeverity
   description: string
@@ -124,18 +125,80 @@ function sortAnomalies(items: AnomalyRow[]) {
   })
 }
 
+const dupeKey = (a: AnomalyRow) => `${a.user_id}|${a.anomaly_type}|${a.description}`
+
+// Keep the earliest of each identical (user + type + description) group.
+function dedupeLocal(items: AnomalyRow[]): AnomalyRow[] {
+  const byAge = [...items].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  const seen = new Set<string>()
+  const keep: AnomalyRow[] = []
+  for (const a of byAge) {
+    const key = dupeKey(a)
+    if (!seen.has(key)) { seen.add(key); keep.push(a) }
+  }
+  return keep
+}
+
+function countDuplicates(items: AnomalyRow[]): number {
+  const seen = new Set<string>()
+  let dupes = 0
+  for (const a of items) {
+    const key = dupeKey(a)
+    if (seen.has(key)) dupes++
+    else seen.add(key)
+  }
+  return dupes
+}
+
 interface AnomalyFeedProps {
   anomalies: AnomalyRow[]
   resolverId: string
   orgId: string
+  canDelete?: boolean
 }
 
-export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) {
+export function AnomalyFeed({ anomalies, resolverId, orgId, canDelete = false }: AnomalyFeedProps) {
   const supabase = createClient()
   const [items, setItems] = useState(anomalies)
   const [filter, setFilter] = useState<'all' | 'open' | 'resolved'>('open')
   const [resolving, setResolving] = useState<Record<string, boolean>>({})
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({})
+  const [deduping, setDeduping] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+  const duplicateCount = countDuplicates(items)
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('Delete this anomaly? This is recorded in the audit log and cannot be undone.')) return
+    setDeleting((d) => ({ ...d, [id]: true }))
+    try {
+      const res = await fetch(`/api/anomalies/${id}`, { method: 'DELETE' })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Delete failed.')
+      setItems((prev) => prev.filter((a) => a.id !== id))
+      toast.success('Anomaly deleted.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Delete failed.')
+    } finally {
+      setDeleting((d) => ({ ...d, [id]: false }))
+    }
+  }
+
+  async function handleDedupe() {
+    if (!window.confirm('Remove duplicate anomalies? Keeps the earliest of each identical group. Deletions are recorded in the audit log.')) return
+    setDeduping(true)
+    try {
+      const res = await fetch('/api/anomalies/dedupe', { method: 'POST' })
+      const data = await res.json() as { error?: string; removed?: number }
+      if (!res.ok) throw new Error(data.error ?? 'Cleanup failed.')
+      setItems((prev) => dedupeLocal(prev))
+      toast.success(`Removed ${data.removed ?? 0} duplicate ${(data.removed ?? 0) === 1 ? 'anomaly' : 'anomalies'}.`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Cleanup failed.')
+    } finally {
+      setDeduping(false)
+    }
+  }
 
   async function handleResolve(id: string) {
     setResolving((r) => ({ ...r, [id]: true }))
@@ -169,23 +232,37 @@ export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) 
 
   return (
     <div className="space-y-4">
-      {/* Filter tabs */}
-      <div className="flex gap-1 border-b pb-2">
-        {(['open', 'resolved', 'all'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={cn(
-              'px-3 py-1.5 text-sm rounded-md transition-colors capitalize',
-              filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            )}
+      {/* Filter tabs + bulk cleanup */}
+      <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex gap-1">
+          {(['open', 'resolved', 'all'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                'px-3 py-1.5 text-sm rounded-md transition-colors capitalize',
+                filter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              )}
+            >
+              {f}
+              {f === 'open' && ` (${items.filter((a) => !a.resolved).length})`}
+            </button>
+          ))}
+        </div>
+        {canDelete && duplicateCount > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleDedupe}
+            disabled={deduping}
+            className="gap-1.5"
           >
-            {f}
-            {f === 'open' && ` (${items.filter((a) => !a.resolved).length})`}
-          </button>
-        ))}
+            <Layers className="h-3.5 w-3.5" />
+            {deduping ? 'Removing…' : `Remove ${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'}`}
+          </Button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -279,17 +356,29 @@ export function AnomalyFeed({ anomalies, resolverId, orgId }: AnomalyFeedProps) 
                     </button>
                   </div>
 
-                  {!anomaly.resolved && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleResolve(anomaly.id)}
-                      disabled={resolving[anomaly.id]}
-                      className="shrink-0 bg-white hover:bg-white/80"
-                    >
-                      {resolving[anomaly.id] ? 'Resolving…' : 'Resolve'}
-                    </Button>
-                  )}
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {!anomaly.resolved && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResolve(anomaly.id)}
+                        disabled={resolving[anomaly.id]}
+                        className="bg-white hover:bg-white/80"
+                      >
+                        {resolving[anomaly.id] ? 'Resolving…' : 'Resolve'}
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(anomaly.id)}
+                        disabled={deleting[anomaly.id]}
+                        title="Delete anomaly (recorded in audit log)"
+                        className="rounded-md border border-current/20 bg-white/70 p-1.5 text-current/70 hover:text-red-700 hover:border-red-300 disabled:opacity-50 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )

@@ -41,6 +41,7 @@ export default async function AnomaliesPage() {
         anomalies={anomalies ?? []}
         resolverId={user.id}
         orgId={profile.org_id}
+        canDelete={profile.role === 'admin'}
       />
     </div>
   )
