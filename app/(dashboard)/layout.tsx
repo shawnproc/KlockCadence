@@ -23,7 +23,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user.id)
     .single()
 
-  if (!profile) redirect('/login')
+  // Signed up but no org yet → finish onboarding (creates org + links admin).
+  if (!profile) redirect('/onboarding')
 
   // Offboarded users retain their records but lose all access — sign them out.
   if (profile.is_active === false) redirect('/api/auth/logout?reason=deactivated')

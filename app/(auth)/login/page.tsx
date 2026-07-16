@@ -99,6 +99,11 @@ export default function LoginPage() {
                 {loading ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
+
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              New here?{' '}
+              <a href="/signup" className="text-primary hover:underline font-medium">Create an account</a>
+            </p>
           </CardContent>
         </Card>
 
