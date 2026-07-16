@@ -34,20 +34,18 @@ export default function SignupPage() {
       const data = await res.json() as { error?: string }
       if (!res.ok) throw new Error(data.error ?? 'Sign up failed.')
 
-      // Account is pre-confirmed — sign in and check org status.
+      // Account is pre-confirmed — sign in and head to onboarding.
       const login = await loginAction(email, password)
       if (login.error) throw new Error(login.error)
 
-      const profileRes = await fetch('/api/auth/me')
-      const profileData = await profileRes.json() as { org_id?: string }
-
-      router.push(profileData.org_id ? '/dashboard' : '/onboarding')
+      router.push('/onboarding')
       router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign up failed.')
       setLoading(false)
     }
   }
+
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#1B2A4A' }}>
       <div className="w-full max-w-sm px-4">
