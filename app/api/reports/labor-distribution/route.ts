@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { writeAuditLog } from '@/lib/audit/logger'
 
 export interface LaborRow {
@@ -37,7 +37,11 @@ export async function GET(request: Request) {
 
   const monthDate = `${month}-01`
 
-  const { data, error } = await supabase.rpc('get_labor_distribution', {
+  // RPC execute is revoked from `authenticated` (it's SECURITY DEFINER and must
+  // not be callable directly with an arbitrary org_id). Call it as service_role
+  // after the role/org checks above, passing the caller's own org_id.
+  const svc = createServiceClient()
+  const { data, error } = await svc.rpc('get_labor_distribution', {
     p_org_id: profile.org_id,
     p_month: monthDate,
   })

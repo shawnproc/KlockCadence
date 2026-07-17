@@ -35,7 +35,6 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [orgData, setOrgData] = useState({ name: '', slug: '', fiscal_year_start: '', holiday_schedule: 'federal' })
-  const [adminPassword, setAdminPassword] = useState('')
   const [orgId, setOrgId] = useState<string | null>(null)
   const [companyCode, setCompanyCode] = useState<string | null>(null)
   const [csvEmployees, setCsvEmployees] = useState<unknown[]>([])
@@ -56,7 +55,7 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding/setup-org', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...orgData, admin_password: adminPassword }),
+        body: JSON.stringify(orgData),
       })
       const data = await res.json() as { error?: string; org_id?: string; company_code?: string }
       if (!res.ok || !data.org_id) throw new Error(data.error ?? 'Failed to create organization.')
@@ -195,14 +194,7 @@ export default function OnboardingPage() {
                     <option value="custom">Custom</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Admin Password</Label>
-                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="At least 8 characters" />
-                  <p className="text-xs text-muted-foreground">
-                    Share this only with people who should be admins — they enter it when signing up to get admin access. Everyone else joins as a regular employee.
-                  </p>
-                </div>
-                <Button onClick={handleOrgSetup} disabled={saving || !orgData.name || !orgData.fiscal_year_start || adminPassword.length < 8}>
+                <Button onClick={handleOrgSetup} disabled={saving || !orgData.name || !orgData.fiscal_year_start}>
                   {saving ? 'Saving…' : 'Continue'}
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>

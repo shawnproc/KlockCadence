@@ -25,17 +25,10 @@ export default async function OrgSettingsPage() {
 
   if (!org) redirect('/dashboard')
 
-  const { data: sec } = await supabase
-    .from('organizations')
-    .select('admin_password_hash')
-    .eq('id', profile.org_id)
-    .single()
-  const hasAdminPassword = !!sec?.admin_password_hash
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Organization Settings</h1>
-      <OrgSettingsForm org={org as Organization} hasAdminPassword={hasAdminPassword} />
+      <OrgSettingsForm org={org as Organization} />
     </div>
   )
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -90,7 +89,6 @@ function AckStatusBadge({
 }
 
 export function UserManagement({ users, orgId, currentUserId, currentPolicyVersion, ackMap }: UserManagementProps) {
-  const supabase = createClient()
   const [localUsers, setLocalUsers] = useState(users)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteData, setInviteData] = useState({
@@ -151,12 +149,13 @@ export function UserManagement({ users, orgId, currentUserId, currentPolicyVersi
   async function handleRoleChange(userId: string, newRole: UserRole) {
     setUpdatingRole((u) => ({ ...u, [userId]: true }))
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role: newRole })
-        .eq('id', userId)
-        .eq('org_id', orgId)
-      if (error) throw new Error(error.message)
+      const res = await fetch(`/api/admin/users/${userId}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      })
+      const data = await res.json() as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Update failed.')
       setLocalUsers((u) => u.map((user) => user.id === userId ? { ...user, role: newRole } : user))
       toast.success('Role updated.')
     } catch (e) {

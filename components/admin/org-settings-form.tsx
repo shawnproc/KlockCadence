@@ -11,10 +11,9 @@ import type { Organization } from '@/types'
 
 interface OrgSettingsFormProps {
   org: Organization
-  hasAdminPassword: boolean
 }
 
-export function OrgSettingsForm({ org, hasAdminPassword }: OrgSettingsFormProps) {
+export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
   const supabase = createClient()
   const [form, setForm] = useState({
     name: org.name,
@@ -22,9 +21,6 @@ export function OrgSettingsForm({ org, hasAdminPassword }: OrgSettingsFormProps)
     holiday_schedule: org.holiday_schedule,
   })
   const [saving, setSaving] = useState(false)
-  const [adminPassword, setAdminPassword] = useState('')
-  const [savingAdminPw, setSavingAdminPw] = useState(false)
-  const [adminPwSet, setAdminPwSet] = useState(hasAdminPassword)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -41,28 +37,6 @@ export function OrgSettingsForm({ org, hasAdminPassword }: OrgSettingsFormProps)
       toast.error(e instanceof Error ? e.message : 'Save failed.')
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleAdminPassword(e: React.FormEvent) {
-    e.preventDefault()
-    if (adminPassword.length < 8) { toast.error('Admin password must be at least 8 characters.'); return }
-    setSavingAdminPw(true)
-    try {
-      const res = await fetch('/api/admin/org/admin-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPassword }),
-      })
-      const data = await res.json() as { error?: string }
-      if (!res.ok) throw new Error(data.error ?? 'Failed to set admin password.')
-      setAdminPwSet(true)
-      setAdminPassword('')
-      toast.success('Admin password updated.')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed.')
-    } finally {
-      setSavingAdminPw(false)
     }
   }
 
@@ -121,25 +95,10 @@ export function OrgSettingsForm({ org, hasAdminPassword }: OrgSettingsFormProps)
           <Label>Company Code</Label>
           <Input value={org.company_code} disabled className="font-mono tracking-widest" />
           <p className="text-xs text-muted-foreground">
-            Share with employees so they can sign up and join. Anyone with this code joins as a regular employee.
+            Share with employees so they can sign up and join. Everyone joins as a regular employee; promote
+            people to manager/admin from the Users page.
           </p>
         </div>
-
-        <form onSubmit={handleAdminPassword} className="space-y-1.5">
-          <Label>Admin Password</Label>
-          <Input
-            type="password"
-            value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
-            placeholder={adminPwSet ? 'Set — enter a new one to change it' : 'Not set — required for admin signups'}
-          />
-          <p className="text-xs text-muted-foreground">
-            People who enter this at signup (along with the company code) become admins. Give it only to those who should administer the company.
-          </p>
-          <Button type="submit" size="sm" variant="outline" disabled={savingAdminPw || adminPassword.length < 8}>
-            {savingAdminPw ? 'Saving…' : adminPwSet ? 'Change admin password' : 'Set admin password'}
-          </Button>
-        </form>
       </CardContent>
     </Card>
     </>

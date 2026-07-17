@@ -21,7 +21,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [companyCode, setCompanyCode] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -37,7 +36,7 @@ export default function SignupPage() {
         const res = await fetch('/api/auth/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name: fullName, email, password, company_code: companyCode, admin_password: adminPassword }),
+          body: JSON.stringify({ full_name: fullName, email, password, company_code: companyCode }),
         })
         const data = await res.json() as { error?: string }
         if (!res.ok) throw new Error(data.error ?? 'Sign up failed.')
@@ -122,17 +121,11 @@ export default function SignupPage() {
               </div>
 
               {mode === 'join' && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyCode">Company Code</Label>
-                    <Input id="companyCode" value={companyCode} onChange={(e) => setCompanyCode(e.target.value)} placeholder="From your administrator" required className="font-mono uppercase" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="adminPassword">Admin Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                    <Input id="adminPassword" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} autoComplete="off" />
-                    <p className="text-xs text-muted-foreground">Leave blank if you&rsquo;re a regular employee.</p>
-                  </div>
-                </>
+                <div className="space-y-1.5">
+                  <Label htmlFor="companyCode">Company Code</Label>
+                  <Input id="companyCode" value={companyCode} onChange={(e) => setCompanyCode(e.target.value)} placeholder="From your administrator" required className="font-mono uppercase" />
+                  <p className="text-xs text-muted-foreground">You&rsquo;ll join as an employee. An admin can grant you elevated access afterward.</p>
+                </div>
               )}
 
               {error && (
