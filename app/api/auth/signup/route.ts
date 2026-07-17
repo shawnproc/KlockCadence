@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit, clientIp } from '@/lib/auth/rate-limit'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -12,6 +13,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  * No profile row is created here; onboarding does that.
  */
 export async function POST(request: Request) {
+  if (!(await checkRateLimit(clientIp(request), 'signup', 5, 600))) {
+    return NextResponse.json({ error: 'Too many attempts. Please try again in a few minutes.' }, { status: 429 })
+  }
+
   let body: { email?: unknown; password?: unknown; full_name?: unknown }
   try {
     body = await request.json()

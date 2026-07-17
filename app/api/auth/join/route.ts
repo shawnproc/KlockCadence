@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { checkRateLimit, clientIp } from '@/lib/auth/rate-limit'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -13,6 +14,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  * pre-confirmed account + profile so they can sign in immediately.
  */
 export async function POST(request: Request) {
+  if (!(await checkRateLimit(clientIp(request), 'join', 10, 600))) {
+    return NextResponse.json({ error: 'Too many attempts. Please try again in a few minutes.' }, { status: 429 })
+  }
+
   let body: {
     full_name?: unknown
     email?: unknown
