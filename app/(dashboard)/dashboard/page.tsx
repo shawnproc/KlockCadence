@@ -35,6 +35,24 @@ export default async function DashboardPage() {
     .eq('week_start_date', weekStart)
     .maybeSingle()
 
+  // Daily-entry reminder: has the user logged time for the most recent workday?
+  // (DCAA expects time recorded daily.) On weekends we point at the last Friday.
+  const refDate = new Date()
+  const dow = refDate.getUTCDay()
+  if (dow === 0) refDate.setUTCDate(refDate.getUTCDate() - 2)
+  else if (dow === 6) refDate.setUTCDate(refDate.getUTCDate() - 1)
+  const refDateStr = refDate.toISOString().split('T')[0]!
+  const { count: loggedForRefDate } = await supabase
+    .from('timesheet_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('org_id', profile.org_id)
+    .eq('user_id', user.id)
+    .eq('work_date', refDateStr)
+  const needsTimeReminder = (loggedForRefDate ?? 0) === 0
+  const refDateLabel = new Date(`${refDateStr}T00:00:00Z`).toLocaleDateString('en-US', {
+    weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC',
+  })
+
   // Leave balances
   const { data: leaveBalances } = await supabase
     .from('leave_balances')
@@ -189,6 +207,18 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-muted-foreground text-sm mt-1">Week of {weekRangeLabel}</p>
       </div>
+
+      {/* Daily-entry reminder (DCAA: record time daily) */}
+      {needsTimeReminder && (
+        <Link href="/timesheets" className="block">
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
+            <Clock className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>Reminder:</strong> you haven&rsquo;t logged time for {refDateLabel} yet. Record it now to keep your timesheet current.
+            </span>
+          </div>
+        </Link>
+      )}
 
       {/* Primary action card — timesheet status */}
       <Card className="border-2 card-elevated">
