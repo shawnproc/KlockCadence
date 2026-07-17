@@ -65,6 +65,8 @@ export function TimesheetGrid({
   const [certModalOpen, setCertModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [acknowledging, setAcknowledging] = useState<Record<string, boolean>>({})
+  // Reason for correcting a previously-rejected timesheet (DCAA: changes need a documented reason).
+  const [changeReason, setChangeReason] = useState('')
 
   const isLocked = timesheet?.certified_by_employee === true && timesheet.status !== 'rejected'
   const weekRange = formatWeekRange(weekStart)
@@ -289,6 +291,12 @@ export function TimesheetGrid({
       return
     }
 
+    // DCAA: a correction to a previously-rejected timesheet must document why.
+    if (timesheet?.status === 'rejected' && changeReason.trim().length < 5) {
+      toast.error('Enter a brief reason for the correction — DCAA requires changes to be documented.')
+      return
+    }
+
     setCertModalOpen(true)
   }
 
@@ -302,7 +310,7 @@ export function TimesheetGrid({
       const certRes = await fetch('/api/timesheets/certify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timesheet_id: tsId, typed_name: typedName }),
+        body: JSON.stringify({ timesheet_id: tsId, typed_name: typedName, change_reason: changeReason.trim() || null }),
       })
 
       if (!certRes.ok) {
@@ -357,6 +365,21 @@ export function TimesheetGrid({
       {timesheet?.status === 'rejected' && timesheet.rejection_reason && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <strong>Rejected:</strong> {timesheet.rejection_reason}
+        </div>
+      )}
+
+      {timesheet?.status === 'rejected' && !isLocked && (
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">
+            Reason for correction <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            value={changeReason}
+            onChange={(e) => setChangeReason(e.target.value)}
+            rows={2}
+            placeholder="Briefly explain what you changed and why (recorded in the audit log)."
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
+          />
         </div>
       )}
 
@@ -456,9 +479,9 @@ export function TimesheetGrid({
                               step="0.25"
                               value={row.entries[d] ?? ''}
                               onChange={(e) => updateHours(rowIdx, d, e.target.value)}
-                              disabled={isWeekend}
-                              placeholder={isWeekend ? '' : '0'}
-                              className="w-14 text-center text-sm border rounded px-1 py-1 bg-background focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-0"
+                              placeholder="0"
+                              title={isWeekend ? 'Weekend — record any hours actually worked (all hours worked must be recorded)' : undefined}
+                              className="w-14 text-center text-sm border rounded px-1 py-1 bg-background focus:ring-1 focus:ring-ring focus:outline-none"
                             />
                           )}
                         </td>

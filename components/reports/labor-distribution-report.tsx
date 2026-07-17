@@ -151,6 +151,16 @@ export function LaborDistributionReport({ orgName }: LaborDistributionReportProp
         </div>
       )}
 
+      {/* Payroll reconciliation note (DCAA: labor distribution ties to payroll) */}
+      {generated && rows.length > 0 && (
+        <div className="rounded-lg border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <strong>Payroll reconciliation:</strong> Each employee&apos;s total hours below is the figure that must
+          reconcile to the hours paid in payroll for this period — the labor charged here should equal the labor
+          paid. Use approved timesheets for the final reconciliation. (KlockCadence provides the labor side;
+          tie it out against your payroll/accounting system.)
+        </div>
+      )}
+
       {/* Summary cards */}
       {generated && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 403 })
   }
 
-  let body: { timesheet_id?: unknown; typed_name?: unknown }
+  let body: { timesheet_id?: unknown; typed_name?: unknown; change_reason?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -36,6 +36,7 @@ export async function POST(request: Request) {
 
   const timesheetId = typeof body.timesheet_id === 'string' ? body.timesheet_id : ''
   const typedName = typeof body.typed_name === 'string' ? body.typed_name : ''
+  const changeReason = typeof body.change_reason === 'string' ? body.change_reason.trim() : ''
   if (!timesheetId) return NextResponse.json({ error: 'timesheet_id is required.' }, { status: 400 })
 
   // The typed name must match the employee's legal name (attestation integrity).
@@ -60,6 +61,11 @@ export async function POST(request: Request) {
   }
   if (!['draft', 'rejected'].includes(ts.status)) {
     return NextResponse.json({ error: `This timesheet cannot be certified (status: ${ts.status}).` }, { status: 409 })
+  }
+
+  // DCAA: a correction to a previously-rejected timesheet must document the reason.
+  if (ts.status === 'rejected' && changeReason.length < 5) {
+    return NextResponse.json({ error: 'A reason for the correction is required.' }, { status: 422 })
   }
 
   // DCAA: every entry must have a work description of at least 10 characters.
@@ -92,7 +98,11 @@ export async function POST(request: Request) {
     action: 'CERTIFICATION_SIGNED',
     target_table: 'timesheets',
     target_id: timesheetId,
-    new_value: { typed_name: typedName, certified_at: now },
+    new_value: {
+      typed_name: typedName,
+      certified_at: now,
+      ...(ts.status === 'rejected' ? { correction_reason: changeReason } : {}),
+    },
   })
 
   return NextResponse.json({ ok: true, status: 'submitted' })
