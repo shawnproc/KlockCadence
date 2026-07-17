@@ -521,12 +521,15 @@ export function TimesheetGrid({
                             <textarea
                               value={row.work_description}
                               onChange={(e) => updateWorkDescription(rowIdx, e.target.value)}
-                              placeholder="Describe the work performed on this charge code (min. 10 characters)"
+                              placeholder="Keep it general, e.g. &quot;On-site contract work / engineering support&quot; (min. 10 characters)"
                               rows={2}
                               className={`w-full text-xs border rounded px-2 py-1.5 bg-background resize-none focus:ring-1 focus:outline-none focus:ring-ring transition-colors ${
                                 descMissing ? 'border-red-400 focus:ring-red-400' : 'border-input'
                               }`}
                             />
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Keep descriptions general. Do <strong>not</strong> include CUI, confidential, secret, or top-secret information.
+                            </p>
                             {descMissing && (
                               <p className="text-xs text-red-500 mt-0.5">
                                 Required before submission — DCAA CAM §6-100 requires documented work descriptions.

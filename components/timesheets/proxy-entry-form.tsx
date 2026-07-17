@@ -215,6 +215,9 @@ export function ProxyEntryForm({ employees, chargeCodes, defaultWeekStart }: Pro
               : 'border-input focus:ring-ring'
           }`}
         />
+        <p className="text-xs text-muted-foreground">
+          Keep it general. Do <strong>not</strong> include CUI, confidential, secret, or top-secret information.
+        </p>
         {proxyReason && !reasonValid && (
           <p className="text-xs text-red-500">
             Minimum {REASON_MIN} characters required. DCAA requires documented justification for all proxy entries.
