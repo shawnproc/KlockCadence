@@ -25,6 +25,8 @@ export interface Organization {
   policy_version: string
   policy_version_updated_at: string
   policy_text: string
+  company_code: string
+  // admin_password_hash intentionally omitted — never send to the client
   created_at: string
 }
 

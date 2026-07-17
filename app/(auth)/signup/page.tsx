@@ -8,17 +8,24 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { AlertCircle, Clock } from 'lucide-react'
+
+type Mode = 'join' | 'create'
 
 export default function SignupPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<Mode>('join')
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [companyCode, setCompanyCode] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function handleSignup(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
@@ -26,20 +33,34 @@ export default function SignupPage() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json() as { error?: string }
-      if (!res.ok) throw new Error(data.error ?? 'Sign up failed.')
+      if (mode === 'join') {
+        const res = await fetch('/api/auth/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName, email, password, company_code: companyCode, admin_password: adminPassword }),
+        })
+        const data = await res.json() as { error?: string }
+        if (!res.ok) throw new Error(data.error ?? 'Sign up failed.')
 
-      // Account is pre-confirmed — sign in and head to onboarding.
-      const login = await loginAction(email, password)
-      if (login.error) throw new Error(login.error)
+        const login = await loginAction(email, password)
+        if (login.error) throw new Error(login.error)
+        router.push('/dashboard')
+        router.refresh()
+      } else {
+        // Create a company: make the account, then finish setup in onboarding.
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, full_name: fullName }),
+        })
+        const data = await res.json() as { error?: string }
+        if (!res.ok) throw new Error(data.error ?? 'Sign up failed.')
 
-      router.push('/onboarding')
-      router.refresh()
+        const login = await loginAction(email, password)
+        if (login.error) throw new Error(login.error)
+        router.push('/onboarding')
+        router.refresh()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Sign up failed.')
       setLoading(false)
@@ -60,10 +81,33 @@ export default function SignupPage() {
         <Card>
           <CardHeader>
             <CardTitle>Create your account</CardTitle>
-            <CardDescription>Set up your organization on KlockCadence</CardDescription>
+            <CardDescription>
+              {mode === 'join' ? 'Join your company on KlockCadence' : 'Set up a new company on KlockCadence'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSignup} className="space-y-4">
+            {/* Mode toggle */}
+            <div className="mb-4 grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+              {(['join', 'create'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => { setMode(m); setError(null) }}
+                  className={cn(
+                    'rounded px-2 py-1.5 text-xs font-medium transition-colors',
+                    mode === m ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {m === 'join' ? 'Join a company' : 'Create a company'}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="email">Work Email</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.gov" required autoComplete="email" />
@@ -77,6 +121,20 @@ export default function SignupPage() {
                 <Input id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required autoComplete="new-password" />
               </div>
 
+              {mode === 'join' && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="companyCode">Company Code</Label>
+                    <Input id="companyCode" value={companyCode} onChange={(e) => setCompanyCode(e.target.value)} placeholder="From your administrator" required className="font-mono uppercase" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="adminPassword">Admin Password <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Input id="adminPassword" type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} autoComplete="off" />
+                    <p className="text-xs text-muted-foreground">Leave blank if you&rsquo;re a regular employee.</p>
+                  </div>
+                </>
+              )}
+
               {error && (
                 <div className="flex items-center gap-2 text-sm text-destructive">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -85,7 +143,7 @@ export default function SignupPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating account…' : 'Sign up'}
+                {loading ? 'Creating account…' : (mode === 'join' ? 'Join company' : 'Continue to setup')}
               </Button>
             </form>
 

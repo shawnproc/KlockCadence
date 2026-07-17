@@ -35,7 +35,9 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [orgData, setOrgData] = useState({ name: '', slug: '', fiscal_year_start: '', holiday_schedule: 'federal' })
+  const [adminPassword, setAdminPassword] = useState('')
   const [orgId, setOrgId] = useState<string | null>(null)
+  const [companyCode, setCompanyCode] = useState<string | null>(null)
   const [csvEmployees, setCsvEmployees] = useState<unknown[]>([])
   const [policies] = useState(FEDERAL_DEFAULTS)
   const [saving, setSaving] = useState(false)
@@ -54,11 +56,12 @@ export default function OnboardingPage() {
       const res = await fetch('/api/onboarding/setup-org', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orgData),
+        body: JSON.stringify({ ...orgData, admin_password: adminPassword }),
       })
-      const data = await res.json() as { error?: string; org_id?: string }
+      const data = await res.json() as { error?: string; org_id?: string; company_code?: string }
       if (!res.ok || !data.org_id) throw new Error(data.error ?? 'Failed to create organization.')
       setOrgId(data.org_id)
+      setCompanyCode(data.company_code ?? null)
       setStep(1)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed.')
@@ -192,7 +195,14 @@ export default function OnboardingPage() {
                     <option value="custom">Custom</option>
                   </select>
                 </div>
-                <Button onClick={handleOrgSetup} disabled={saving || !orgData.name || !orgData.fiscal_year_start}>
+                <div className="space-y-1.5">
+                  <Label>Admin Password</Label>
+                  <Input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="At least 8 characters" />
+                  <p className="text-xs text-muted-foreground">
+                    Share this only with people who should be admins — they enter it when signing up to get admin access. Everyone else joins as a regular employee.
+                  </p>
+                </div>
+                <Button onClick={handleOrgSetup} disabled={saving || !orgData.name || !orgData.fiscal_year_start || adminPassword.length < 8}>
                   {saving ? 'Saving…' : 'Continue'}
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
@@ -201,6 +211,16 @@ export default function OnboardingPage() {
 
             {step === 1 && (
               <div className="space-y-4">
+                {companyCode && (
+                  <div className="rounded-md border border-green-200 bg-green-50 p-4">
+                    <p className="text-sm font-medium text-green-800">Your company code</p>
+                    <p className="mt-1 font-mono text-2xl font-bold tracking-widest text-green-900">{companyCode}</p>
+                    <p className="mt-1 text-xs text-green-700">
+                      Share this with employees so they can sign up and join. They&rsquo;ll join as regular employees;
+                      give the admin password only to those who should be admins.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-md border border-dashed p-6 text-center">
                   <p className="text-sm text-muted-foreground mb-3">
                     Upload a CSV with columns: <code>full_name, email, role, department, hire_date</code>

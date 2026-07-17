@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { writeAuditLog } from '@/lib/audit/logger'
+import { hashAdminPassword, generateCompanyCode } from '@/lib/auth/company'
 
 /**
  * POST /api/onboarding/setup-org
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'You must be signed in to create an organization.' }, { status: 401 })
 
-  let body: { name?: unknown; slug?: unknown; fiscal_year_start?: unknown; holiday_schedule?: unknown }
+  let body: { name?: unknown; slug?: unknown; fiscal_year_start?: unknown; holiday_schedule?: unknown; admin_password?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -22,6 +23,11 @@ export async function POST(request: Request) {
 
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (!name) return NextResponse.json({ error: 'Organization name is required.' }, { status: 400 })
+
+  const adminPassword = typeof body.admin_password === 'string' ? body.admin_password : ''
+  if (adminPassword.length < 8) {
+    return NextResponse.json({ error: 'Set an admin password of at least 8 characters (share it only with people who should be admins).' }, { status: 400 })
+  }
 
   const slug = (typeof body.slug === 'string' && body.slug.trim())
     ? body.slug.trim()
@@ -43,10 +49,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'You already belong to an organization.' }, { status: 409 })
   }
 
+  const companyCode = generateCompanyCode()
   const { data: org, error: orgError } = await svc
     .from('organizations')
-    .insert({ name, slug, fiscal_year_start: fiscalYearStart, holiday_schedule: holidaySchedule })
-    .select('id')
+    .insert({
+      name,
+      slug,
+      fiscal_year_start: fiscalYearStart,
+      holiday_schedule: holidaySchedule,
+      company_code: companyCode,
+      admin_password_hash: hashAdminPassword(adminPassword),
+    })
+    .select('id, company_code')
     .single()
 
   if (orgError || !org) {
@@ -78,5 +92,5 @@ export async function POST(request: Request) {
     new_value: { created: true, name },
   })
 
-  return NextResponse.json({ ok: true, org_id: org.id })
+  return NextResponse.json({ ok: true, org_id: org.id, company_code: org.company_code })
 }
