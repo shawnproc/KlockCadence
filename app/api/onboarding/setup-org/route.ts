@@ -74,7 +74,10 @@ export async function POST(request: Request) {
   })
 
   if (profileError) {
-    return NextResponse.json({ error: `Org created, but linking admin failed: ${profileError.message}` }, { status: 500 })
+    // Roll back the just-created org so we don't leave an orphan with a
+    // burned company_code and no admin.
+    await svc.from('organizations').delete().eq('id', org.id)
+    return NextResponse.json({ error: `Could not link you as admin: ${profileError.message}` }, { status: 500 })
   }
 
   await writeAuditLog({

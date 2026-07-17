@@ -11,20 +11,21 @@ export function getTenureTier(hireDate: string, asOfDate?: string): TenureTier {
   return 'year_5_plus'
 }
 
+// All week math is done in UTC so week boundaries and weekday detection do not
+// shift with the host timezone (DCAA total-time accounting must be exact).
 export function getWeekStart(date: Date): Date {
   const d = new Date(date)
-  const day = d.getDay()
+  const day = d.getUTCDay()
   const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() + diff)
+  d.setUTCHours(0, 0, 0, 0)
   return d
 }
 
 export function getWeekDays(weekStart: string): string[] {
-  const start = new Date(weekStart)
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start)
-    d.setDate(start.getDate() + i)
+    const d = new Date(`${weekStart}T00:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + i)
     return d.toISOString().split('T')[0]!
   })
 }
@@ -50,7 +51,7 @@ export function getLeaveTypeLabel(type: LeaveType): string {
 export function calculateExpectedHours(weekDays: string[], excludeWeekends = true): number {
   if (!excludeWeekends) return weekDays.length * 8
   return weekDays.filter((d) => {
-    const day = new Date(d).getDay()
+    const day = new Date(`${d}T00:00:00Z`).getUTCDay()
     return day !== 0 && day !== 6
   }).length * 8
 }

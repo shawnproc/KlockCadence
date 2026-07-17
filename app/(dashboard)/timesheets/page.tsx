@@ -54,15 +54,31 @@ export default async function TimesheetsPage({ searchParams }: TimesheetPageProp
       .order('code'),
     supabase
       .from('leave_requests')
-      .select('requested_hours')
+      .select('requested_hours, start_date, end_date')
       .eq('org_id', profile.org_id)
       .eq('user_id', user.id)
       .eq('status', 'approved')
-      .gte('start_date', weekStart)
-      .lte('end_date', days[6]!),
+      // Any request that OVERLAPS this week (not only fully contained ones).
+      .lte('start_date', days[6]!)
+      .gte('end_date', weekStart),
   ])
 
-  const approvedLeaveHours = approvedLeave?.reduce((sum, r) => sum + r.requested_hours, 0) ?? 0
+  // Count only the portion of each leave request that falls within this week,
+  // prorated by days, so multi-week and partial-overlap leave is accounted for
+  // correctly in the total-time check.
+  const weekEnd = days[6]!
+  const dayCountInclusive = (a: string, b: string) =>
+    Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000) + 1
+  const approvedLeaveHours = (approvedLeave ?? []).reduce((sum, r) => {
+    const reqStart = r.start_date as string
+    const reqEnd = r.end_date as string
+    const overlapStart = reqStart > weekStart ? reqStart : weekStart
+    const overlapEnd = reqEnd < weekEnd ? reqEnd : weekEnd
+    if (overlapStart > overlapEnd) return sum
+    const totalDays = dayCountInclusive(reqStart, reqEnd)
+    const overlapDays = dayCountInclusive(overlapStart, overlapEnd)
+    return sum + (totalDays > 0 ? (Number(r.requested_hours) * overlapDays) / totalDays : 0)
+  }, 0)
 
   // Build proxy actor name map for any proxy entries this week
   const proxyActorIds = Array.from(

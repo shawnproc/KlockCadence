@@ -31,7 +31,22 @@ export async function updateSession(request: NextRequest) {
   const isLoginRoute = request.nextUrl.pathname.startsWith('/login')
   const isSignupRoute = request.nextUrl.pathname.startsWith('/signup')
   const isApiRoute = request.nextUrl.pathname.startsWith('/api')
+  const isAuthApiRoute = request.nextUrl.pathname.startsWith('/api/auth')
   const isPublicRoute = request.nextUrl.pathname === '/'
+
+  // Enforce is_active for authenticated API calls in one place: a deactivated
+  // user must not be able to act even while their access token is still valid.
+  // Auth endpoints (signup/join/callback/logout) are pre-auth and excluded.
+  if (user && isApiRoute && !isAuthApiRoute) {
+    const { data: activeCheck } = await supabase
+      .from('users')
+      .select('is_active')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (activeCheck && activeCheck.is_active === false) {
+      return NextResponse.json({ error: 'Your account has been deactivated.' }, { status: 403 })
+    }
+  }
 
   if (!user && !isLoginRoute && !isSignupRoute && !isApiRoute && !isPublicRoute) {
     const url = request.nextUrl.clone()
