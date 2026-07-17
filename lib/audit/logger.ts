@@ -51,6 +51,10 @@ export async function writeAuditLog(entry: AuditLogEntry): Promise<void> {
   })
 
   if (error) {
+    // Fail loud: the audit trail is a compliance guarantee, so a failed write
+    // must not be silently dropped. Callers should let this propagate (and,
+    // for deletions, audit BEFORE the destructive action).
     console.error('[audit_log] Failed to write audit entry:', error.message)
+    throw new Error(`Audit log write failed: ${error.message}`)
   }
 }

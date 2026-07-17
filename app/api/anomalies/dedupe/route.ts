@@ -36,29 +36,36 @@ export async function POST() {
 
   // Group by identical (user, type, description); keep the first (earliest).
   const seen = new Set<string>()
-  const idsToDelete: string[] = []
+  const toDelete: { id: string; anomaly_type: string; description: string }[] = []
   for (const a of anomalies ?? []) {
     const key = `${a.user_id}|${a.anomaly_type}|${a.description}`
     if (seen.has(key)) {
-      idsToDelete.push(a.id as string)
+      toDelete.push({ id: a.id as string, anomaly_type: a.anomaly_type as string, description: a.description as string })
     } else {
       seen.add(key)
     }
   }
 
-  if (idsToDelete.length === 0) {
+  if (toDelete.length === 0) {
     return NextResponse.json({ ok: true, removed: 0 })
   }
 
-  await writeAuditLog({
-    org_id: profile.org_id,
-    actor_id: user.id,
-    action: 'ANOMALY_DELETED',
-    target_table: 'anomalies',
-    target_id: 'bulk-dedupe',
-    new_value: { reason: 'dedupe', removed_count: idsToDelete.length, removed_ids: idsToDelete },
-  })
+  // Record each deletion (with a valid uuid target_id) BEFORE deleting, so
+  // nothing is removed without an audit trail. writeAuditLog throws on failure,
+  // which aborts before any delete happens.
+  for (const a of toDelete) {
+    await writeAuditLog({
+      org_id: profile.org_id,
+      actor_id: user.id,
+      action: 'ANOMALY_DELETED',
+      target_table: 'anomalies',
+      target_id: a.id,
+      old_value: { anomaly_type: a.anomaly_type, description: a.description },
+      new_value: { reason: 'dedupe' },
+    })
+  }
 
+  const idsToDelete = toDelete.map((a) => a.id)
   const { error } = await svc
     .from('anomalies')
     .delete()

@@ -101,15 +101,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message ?? 'Could not record leave request.' }, { status: 500 })
   }
 
-  // Deduct the hours from the tracked balance.
+  // Deduct atomically (guards against lost-update / over-spend races): the RPC
+  // only deducts if the balance still covers the request.
   if (balance) {
-    const { error: balanceError } = await svc
-      .from('leave_balances')
-      .update({ used_hours: Number(balance.used_hours) + requested })
-      .eq('id', balance.id)
+    const { data: deducted, error: deductError } = await svc.rpc('deduct_leave_balance', {
+      p_org_id: profile.org_id,
+      p_user_id: user.id,
+      p_leave_type: leaveType,
+      p_hours: requested,
+    })
 
-    if (balanceError) {
-      return NextResponse.json({ error: `Approved, but balance update failed: ${balanceError.message}` }, { status: 500 })
+    if (deductError || deducted !== true) {
+      // Roll back the approved request we just inserted.
+      await svc.from('leave_requests').delete().eq('id', inserted.id)
+      if (deductError) {
+        return NextResponse.json({ error: `Could not deduct balance: ${deductError.message}` }, { status: 500 })
+      }
+      return NextResponse.json(
+        { error: `Insufficient balance: requesting ${requested.toFixed(2)}h but the balance no longer covers it.` },
+        { status: 422 }
+      )
     }
   }
 

@@ -294,18 +294,10 @@ export function TimesheetGrid({
 
   async function handleCertify(typedName: string) {
     try {
+      // Save the draft entries first, then let the server certify + submit
+      // (it validates ownership, the typed name, and work descriptions, and
+      // sets the certified flag itself — never trusted to the client).
       const tsId = await saveEntries()
-
-      const { error: certError } = await supabase
-        .from('timesheets')
-        .update({
-          certified_by_employee: true,
-          certified_at: new Date().toISOString(),
-          status: 'submitted',
-        })
-        .eq('id', tsId)
-
-      if (certError) throw new Error(certError.message)
 
       const certRes = await fetch('/api/timesheets/certify', {
         method: 'POST',

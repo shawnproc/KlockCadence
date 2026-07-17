@@ -67,7 +67,9 @@ export async function POST(
   const update =
     decision === 'approved'
       ? { status: 'approved', approved_by: user.id, approved_at: now, rejection_reason: null }
-      : { status: 'rejected', rejection_reason: reason, approved_by: null, approved_at: null }
+      // On rejection, clear the certification so the employee can correct and
+      // re-certify without tripping the post-certification tamper trigger.
+      : { status: 'rejected', rejection_reason: reason, approved_by: null, approved_at: null, certified_by_employee: false, certified_at: null }
 
   const { error } = await svc
     .from('timesheets')
