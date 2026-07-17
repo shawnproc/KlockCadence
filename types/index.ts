@@ -50,6 +50,7 @@ export interface User {
   is_active: boolean
   deactivated_at: string | null
   deactivated_by: string | null
+  must_change_password: boolean
   created_at: string
 }
 

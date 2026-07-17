@@ -1,0 +1,7 @@
+# Supabase project config (version-controlled).
+
+# The anomaly-detection function must NOT be publicly invokable — it runs
+# detection across orgs and can trigger notifications. Require a valid JWT;
+# invoke it from an authenticated cron/service context.
+[functions.detect-anomalies]
+verify_jwt = true

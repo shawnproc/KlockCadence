@@ -14,12 +14,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/login')
 
-  // New hires imported with a temporary password must set their own first.
-  if (user.user_metadata?.must_change_password) redirect('/auth/set-password')
-
   const { data: profile } = await supabase
     .from('users')
-    .select('full_name, role, org_id, is_active, organizations(name, policy_version, policy_text)')
+    .select('full_name, role, org_id, is_active, must_change_password, organizations(name, policy_version, policy_text)')
     .eq('id', user.id)
     .single()
 
@@ -28,6 +25,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Offboarded users retain their records but lose all access — sign them out.
   if (profile.is_active === false) redirect('/api/auth/logout?reason=deactivated')
+
+  // New hires imported with a temporary password must set their own first
+  // (server-authoritative flag — cannot be cleared from the client).
+  if (profile.must_change_password) redirect('/auth/set-password')
 
   const orgData = profile.organizations as unknown as {
     name: string

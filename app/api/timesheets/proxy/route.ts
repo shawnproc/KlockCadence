@@ -26,7 +26,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Only managers and admins can create proxy entries.' }, { status: 403 })
   }
 
-  const body = await request.json() as ProxyEntryBody
+  let body: ProxyEntryBody
+  try {
+    body = await request.json() as ProxyEntryBody
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+  if (!body || typeof body.hours !== 'object' || body.hours === null) {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
 
   if (!body.proxy_reason || body.proxy_reason.trim().length < 50) {
     return NextResponse.json(

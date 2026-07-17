@@ -19,9 +19,14 @@ export async function POST(request: Request) {
 
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json() as AcknowledgeBody
+  let body: AcknowledgeBody
+  try {
+    body = await request.json() as AcknowledgeBody
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
 
-  if (!body.entry_ids || body.entry_ids.length === 0) {
+  if (!body.entry_ids || !Array.isArray(body.entry_ids) || body.entry_ids.length === 0) {
     return NextResponse.json({ error: 'No entry IDs provided.' }, { status: 422 })
   }
 

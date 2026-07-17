@@ -58,7 +58,7 @@ async function checkInsufficientBalance(orgId: string) {
       .eq('org_id', orgId)
       .eq('user_id', req.user_id)
       .eq('leave_type', req.leave_type)
-      .single()
+      .maybeSingle()
 
     if (balance && req.requested_hours > balance.available_hours) {
       await insertAnomaly({
@@ -184,7 +184,7 @@ async function checkPolicyAcknowledgments(orgId: string) {
     .from('organizations')
     .select('policy_version')
     .eq('id', orgId)
-    .single()
+    .maybeSingle()
 
   if (!org) return
 

@@ -101,7 +101,7 @@ export async function POST(request: Request) {
       email,
       password: temp,
       email_confirm: true,
-      user_metadata: { full_name: fullName, must_change_password: true },
+      user_metadata: { full_name: fullName },
     })
 
     if (createError || !authUser?.user) {
@@ -122,6 +122,7 @@ export async function POST(request: Request) {
       department,
       hire_date: hireDate,
       is_active: true,
+      must_change_password: true,
     })
 
     if (profileError) {
