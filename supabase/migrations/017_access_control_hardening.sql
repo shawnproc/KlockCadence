@@ -21,8 +21,17 @@ REVOKE UPDATE ON users FROM authenticated;
 --    all authenticated users — any user could pull another org's data by
 --    calling the RPC directly. Revoke direct execution; the report route calls
 --    them as service_role after enforcing admin/finance role + own org.
-REVOKE EXECUTE ON FUNCTION get_labor_distribution(uuid, date) FROM authenticated, public;
-REVOKE EXECUTE ON FUNCTION get_labor_distribution_weekly(uuid, date) FROM authenticated, public;
+-- Guarded: these functions may not exist in every environment (migration 011
+-- was not applied everywhere). Revoke only if present.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_labor_distribution') THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION get_labor_distribution(uuid, date) FROM authenticated, public';
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_labor_distribution_weekly') THEN
+    EXECUTE 'REVOKE EXECUTE ON FUNCTION get_labor_distribution_weekly(uuid, date) FROM authenticated, public';
+  END IF;
+END $$;
 
 -- 3. Remove the shared admin-password model entirely (replaced by audited,
 --    admin-initiated role changes via /api/admin/users/[id]/role). Dropping the
