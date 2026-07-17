@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { writeAuditLog } from '@/lib/audit/logger'
 import { generateCompanyCode } from '@/lib/auth/company'
+import { DEFAULT_TIMEKEEPING_POLICY } from '@/lib/dcaa/policy-template'
 
 /**
  * POST /api/onboarding/setup-org
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
       fiscal_year_start: fiscalYearStart,
       holiday_schedule: holidaySchedule,
       company_code: companyCode,
+      policy_text: DEFAULT_TIMEKEEPING_POLICY,
     })
     .select('id, company_code')
     .single()
